@@ -82,8 +82,11 @@ struct HUDOverlay: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     HUDLabel(text: "SHIELD")
-                    if state.twinLaser {
+                    if state.twinLaser && !state.wingDamaged {
                         HUDLabel(text: "TWIN", size: 10, color: .hudOrange)
+                    }
+                    if state.wingDamaged {
+                        HUDLabel(text: "WING DMG", size: 10, color: .hudOrange)
                     }
                 }
                 shieldBar
@@ -246,7 +249,12 @@ struct HUDOverlay: View {
                     .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundColor(.hudMint)
 
-                HUDLabel(text: "HI-SCORE  \(formatNumber(state.hiScore))", size: 12)
+                HStack(spacing: 18) {
+                    HUDLabel(text: "HI-SCORE  \(formatNumber(state.hiScore))", size: 12)
+                    if state.maxSector > 1 {
+                        HUDLabel(text: "BEST RUN  SECTOR \(state.maxSector)", size: 12)
+                    }
+                }
 
                 VStack(spacing: 3) {
                     HUDLabel(text: "DRAG — STEER   ·   HOLD FIRE — LASERS", size: 10)
@@ -307,9 +315,10 @@ struct HUDOverlay: View {
                     HUDLabel(text: "HI-SCORE  \(formatNumber(state.hiScore))", size: 12)
                 }
 
-                Text("TAP TO RETRY")
+                Text("TAP TO CONTINUE — SECTOR \(state.level)")
                     .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.hudMintDim)
+                    .foregroundColor(.hudMint)
+                HUDLabel(text: "✕ FOR TITLE SCREEN", size: 11)
             }
         }
     }
@@ -332,7 +341,7 @@ struct HUDOverlay: View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
                 HUDLabel(text: "⚠", size: 14, color: .hudOrange)
-                Text("SECTOR GUARDIAN")
+                Text(state.allRange ? "ALL-RANGE MODE" : "SECTOR GUARDIAN")
                     .font(.system(size: 15, weight: .heavy, design: .monospaced))
                     .foregroundColor(.hudOrange)
                 HUDLabel(text: "⚠", size: 14, color: .hudOrange)

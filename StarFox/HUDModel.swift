@@ -30,6 +30,9 @@ struct HUDSnapshot {
     let sectorName: String
     let bossHealth: Int
     let bossMaxHealth: Int
+    let wingDamaged: Bool
+    let allRange: Bool
+    let maxSector: Int
 }
 
 final class HUDModel: ObservableObject {
@@ -46,6 +49,9 @@ final class HUDModel: ObservableObject {
     @Published var sectorName: String = ""
     @Published var bossHealth: Int = 0
     @Published var bossMaxHealth: Int = 1
+    @Published var wingDamaged: Bool = false
+    @Published var allRange: Bool = false
+    @Published var maxSector: Int = 1
     @Published var radio: RadioMessage?
 
     let maxShield: Int = 6
@@ -69,6 +75,9 @@ final class HUDModel: ObservableObject {
         if sectorName != s.sectorName { sectorName = s.sectorName }
         if bossHealth != s.bossHealth { bossHealth = s.bossHealth }
         if bossMaxHealth != s.bossMaxHealth { bossMaxHealth = s.bossMaxHealth }
+        if wingDamaged != s.wingDamaged { wingDamaged = s.wingDamaged }
+        if allRange != s.allRange { allRange = s.allRange }
+        if maxSector != s.maxSector { maxSector = s.maxSector }
     }
 
     func showRadio(_ message: RadioMessage, duration: TimeInterval) {

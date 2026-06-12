@@ -18,12 +18,19 @@ enum SoundEffect: CaseIterable {
     case ring, powerUp, bomb, roll, radio, bossAlarm
 }
 
+enum MusicTheme {
+    case menu, combat
+}
+
 final class SoundSystem {
     static let shared = SoundSystem()
 
     private let engine = AVAudioEngine()
     private var players: [AVAudioPlayerNode] = []
     private var buffers: [SoundEffect: AVAudioPCMBuffer] = [:]
+    private var musicPlayer: AVAudioPlayerNode?
+    private var musicBuffers: [MusicTheme: AVAudioPCMBuffer] = [:]
+    private var currentTheme: MusicTheme?
     private var nextPlayer = 0
     private let queue = DispatchQueue(label: "starfox.sound")
     private var ready = false
@@ -45,9 +52,17 @@ final class SoundSystem {
             engine.connect(player, to: engine.mainMixerNode, format: format)
             players.append(player)
         }
+        let music = AVAudioPlayerNode()
+        engine.attach(music)
+        engine.connect(music, to: engine.mainMixerNode, format: format)
+        musicPlayer = music
+
         for effect in SoundEffect.allCases {
             buffers[effect] = Self.makeBuffer(for: effect, format: format)
         }
+        musicBuffers[.combat] = Self.makeMusicLoop(combat: true, format: format)
+        musicBuffers[.menu] = Self.makeMusicLoop(combat: false, format: format)
+
         engine.prepare()
         do {
             try engine.start()
@@ -66,6 +81,28 @@ final class SoundSystem {
             player.volume = volume
             player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
             player.play()
+        }
+    }
+
+    func playMusic(_ theme: MusicTheme, volume: Float = 0.24) {
+        queue.async { [weak self] in
+            guard let self, self.ready,
+                  self.currentTheme != theme,
+                  let player = self.musicPlayer,
+                  let buffer = self.musicBuffers[theme] else { return }
+            self.currentTheme = theme
+            player.stop()
+            player.volume = volume
+            player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+            player.play()
+        }
+    }
+
+    func stopMusic() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.currentTheme = nil
+            self.musicPlayer?.stop()
         }
     }
 
@@ -194,6 +231,75 @@ final class SoundSystem {
         for i in 0..<Int(buffer.frameLength) {
             let t = Double(i) / sampleRate
             data[i] = max(-1, min(1, data[i] + sample(t)))
+        }
+        return buffer
+    }
+
+    // MARK: Music
+
+    /// 4-bar chiptune loop over Am–F–C–G. Combat: driving square bass,
+    /// 16th-note arpeggio, kick and hats at 132 BPM. Menu: slow gated
+    /// sine pads on the same progression. Every voice is enveloped from
+    /// its own note start, so the loop point is click-free.
+    private static func makeMusicLoop(combat: Bool, format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let bpm = combat ? 132.0 : 84.0
+        let beat = 60.0 / bpm
+        let totalBeats = 16.0
+        let duration = beat * totalBeats
+        let frames = AVAudioFrameCount(duration * sampleRate)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
+              let data = buffer.floatChannelData?[0] else { return nil }
+        buffer.frameLength = frames
+
+        // One chord per bar: Am, F, C, G (root, third, fifth).
+        let chords: [[Double]] = [
+            [110.00, 130.81, 164.81],
+            [87.31, 110.00, 130.81],
+            [130.81, 164.81, 196.00],
+            [98.00, 123.47, 146.83]
+        ]
+
+        for i in 0..<Int(frames) {
+            let t = Double(i) / sampleRate
+            let beatPos = t / beat
+            let bar = min(3, Int(beatPos / 4))
+            let chord = chords[bar]
+            var s: Float = 0
+
+            // Bass: eighth-note root pulses.
+            let eighthPos = beatPos * 2
+            let eighthIdx = Int(eighthPos)
+            let bassT = (eighthPos - Double(eighthIdx)) * (beat / 2)
+            s += square(2 * .pi * chord[0] * bassT) * 0.15 * fexp(-bassT * 6)
+
+            if combat {
+                // Lead: 16th-note arpeggio two octaves up.
+                let sixteenthPos = beatPos * 4
+                let sixteenthIdx = Int(sixteenthPos)
+                let leadT = (sixteenthPos - Double(sixteenthIdx)) * (beat / 4)
+                let tone = chord[sixteenthIdx % 3] * 4
+                s += square(2 * .pi * tone * leadT) * 0.08 * fexp(-leadT * 10)
+
+                // Kick on every beat.
+                let beatIdx = Int(beatPos)
+                let kickT = (beatPos - Double(beatIdx)) * beat
+                if kickT < 0.12 {
+                    s += Float(sin(2 * .pi * (110 - 450 * kickT) * kickT)) * 0.30 * fexp(-kickT * 28)
+                }
+                // Hat on offbeat eighths.
+                if eighthIdx % 2 == 1 {
+                    s += rand() * 0.05 * fexp(-bassT * 80)
+                }
+            } else {
+                // Soft pads gated per bar (fade in/out avoids loop clicks).
+                let barT = (beatPos - Double(bar) * 4) * beat
+                let gate = Float(sin(.pi * barT / (4 * beat)))
+                for f in chord {
+                    s += fsin(f * 2, barT) * 0.05 * gate
+                }
+            }
+
+            data[i] = max(-1, min(1, s))
         }
         return buffer
     }

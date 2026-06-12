@@ -240,9 +240,10 @@ class GameViewController: UIViewController {
             return
         case .gameOver:
             // Small grace period so mashing FIRE while dying doesn't skip
-            // the game-over screen instantly.
+            // the game-over screen instantly. Tap = continue from the
+            // current sector; the ✕ button returns to the title.
             if CACurrentMediaTime() - phaseChangedAt > 0.8 {
-                gameScene.requestRestartGame()
+                gameScene.requestContinue()
             }
             return
         case .paused:

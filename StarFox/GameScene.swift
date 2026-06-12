@@ -74,7 +74,7 @@ class GameScene: SCNScene {
     private var pendingRollRequest = false
     private var pendingBombRequest = false
     private var pendingStartRequest = false
-    private var pendingRestartRequest = false
+    private var pendingContinueRequest = false
     private var pendingResumeRequest = false
     private var pendingPauseRequest = false
     private var pendingExitRequest = false
@@ -225,9 +225,10 @@ class GameScene: SCNScene {
         inputLock.unlock()
     }
 
-    func requestRestartGame() {
+    /// Continue from the game-over screen: same sector, score resets.
+    func requestContinue() {
         inputLock.lock()
-        pendingRestartRequest = true
+        pendingContinueRequest = true
         inputLock.unlock()
     }
 
@@ -420,7 +421,7 @@ class GameScene: SCNScene {
 
     // MARK: - Flight
 
-    private func advanceShip(dt: TimeInterval) {
+    private func advanceShip(dt: TimeInterval, speedScale: Float = 1) {
         var targetSpeed = baseForwardSpeed
         if boostHeld && state.boostGauge > 0.05 {
             targetSpeed += boostBonus
@@ -431,6 +432,7 @@ class GameScene: SCNScene {
         } else {
             state.boostGauge = min(1, state.boostGauge + 0.22 * dt)
         }
+        targetSpeed *= speedScale
         forwardSpeedCurrent += (targetSpeed - forwardSpeedCurrent) * Float(min(1, dt * 5))
         shipNode.position.z += forwardSpeedCurrent * Float(dt)
     }
@@ -456,6 +458,13 @@ class GameScene: SCNScene {
         shipNode.position.x = (shipNode.position.x + drift).clamped(to: corridorX)
     }
 
+    /// A broken wing pulls the ship toward the stump until repaired.
+    private func applyWingDrag(dt: TimeInterval) {
+        guard shipNode.hasBrokenWing else { return }
+        let pull = shipNode.brokenWingSide * 0.7 * Float(dt)
+        shipNode.position.x = (shipNode.position.x + pull).clamped(to: corridorX)
+    }
+
     private func updateEnginePower(dt: TimeInterval, extraBoost: CGFloat) {
         let normalizedSpeed = CGFloat((forwardSpeedCurrent - 8.0) / 24.0).smoothStep01
         let fireBoost: CGFloat = max(0, (cameraShakeImpulse - 0.010) * 9.0)
@@ -476,7 +485,7 @@ class GameScene: SCNScene {
         brakeHeld = pendingBrakeHeld
 
         let shouldStart = pendingStartRequest
-        let shouldRestart = pendingRestartRequest
+        let shouldContinue = pendingContinueRequest
         let shouldResume = pendingResumeRequest
         let shouldPause = pendingPauseRequest
         let shouldExit = pendingExitRequest
@@ -484,7 +493,7 @@ class GameScene: SCNScene {
         let shouldBomb = pendingBombRequest
 
         pendingStartRequest = false
-        pendingRestartRequest = false
+        pendingContinueRequest = false
         pendingResumeRequest = false
         pendingPauseRequest = false
         pendingExitRequest = false
@@ -498,9 +507,9 @@ class GameScene: SCNScene {
             return
         }
 
-        if shouldRestart {
+        if shouldContinue, state.phase == .gameOver {
             resetScene()
-            state.startNewGame()
+            state.continueGame()
             phaseTimer = 0
         } else if shouldStart, state.phase == .menu {
             resetScene()
@@ -546,6 +555,7 @@ class GameScene: SCNScene {
 
         shipNode.position = SCNVector3(0, 0, 0)
         shipNode.resetAttitude()
+        shipNode.repairWings()
         cameraNode.position = SCNVector3(0, cameraOffsetY, cameraOffsetZ)
         cameraNode.look(at: SCNVector3(0, cameraLookOffsetY, cameraLookOffsetZ))
         cameraCurrentFOV = cameraBaseFOV
@@ -574,6 +584,18 @@ class GameScene: SCNScene {
         guard state.phase != lastPublishedPhase else { return }
         lastPublishedPhase = state.phase
         syncHUD(dt: 0, force: true)
+
+        switch state.phase {
+        case .menu:
+            SoundSystem.shared.playMusic(.menu)
+        case .levelIntro:
+            SoundSystem.shared.playMusic(.combat)
+        case .gameOver:
+            SoundSystem.shared.stopMusic()
+        default:
+            break // keep whatever is playing
+        }
+
         let phase = state.phase
         DispatchQueue.main.async { [weak self] in
             self?.onPhaseChanged?(phase)
@@ -839,7 +861,8 @@ class GameScene: SCNScene {
             shipNode.position.y,
             shipNode.position.z + reticleFarZ
         )
-        if state.twinLaserTimer > 0 {
+        // Twin lasers need both wings intact.
+        if state.twinLaserTimer > 0 && !shipNode.hasBrokenWing {
             spawnLaserBolt(from: shipNode.muzzleWorldPosition(ShipNode.leftMuzzleLocal), toward: aim)
             spawnLaserBolt(from: shipNode.muzzleWorldPosition(ShipNode.rightMuzzleLocal), toward: aim)
         } else {
@@ -935,6 +958,8 @@ class GameScene: SCNScene {
     private func startBossEncounter() {
         guard bossNode == nil else { return }
         state.phase = .bossEncounter
+        // Venom sectors drop the rail: all-range duel with the guardian.
+        state.allRangeBoss = state.level % GameState.sectorNames.count == 0
         for o in activeObstacles { o.removeFromParentNode() }
         activeObstacles.removeAll()
         formations.removeAll()
@@ -951,7 +976,11 @@ class GameScene: SCNScene {
         bossFireTimer = 0
         state.bossHealthRemaining = boss.health
         SoundSystem.shared.play(.bossAlarm, volume: 0.7)
-        postRadio("HQ", "Enemy guardian ahead — aim for the core!")
+        if state.allRangeBoss {
+            postRadio("HQ", "All-range mode — engage freely!")
+        } else {
+            postRadio("HQ", "Enemy guardian ahead — aim for the core!")
+        }
     }
 
     private func bossAttack(_ boss: BossNode) {
@@ -1025,6 +1054,60 @@ class GameScene: SCNScene {
         activeEnemyBolts.removeAll { abs($0.position.z - shipZ) > 80 || $0.parent == nil }
     }
 
+    // MARK: - Score popups
+
+    private var popupImageCache: [String: UIImage] = [:]
+
+    private func popupImage(text: String, accent: Bool) -> UIImage {
+        let key = "\(text)|\(accent)"
+        if let cached = popupImageCache[key] { return cached }
+        let color = accent
+            ? UIColor(red: 0.95, green: 0.58, blue: 0.33, alpha: 1)
+            : UIColor.cMintHighlight
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedSystemFont(ofSize: 28, weight: .heavy),
+            .foregroundColor: color
+        ]
+        let size = (text as NSString).size(withAttributes: attributes)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            (text as NSString).draw(at: .zero, withAttributes: attributes)
+        }
+        popupImageCache[key] = image
+        return image
+    }
+
+    /// Floating "+150" style score feedback at the kill position.
+    private func showScorePopup(_ amount: Int, at position: SCNVector3, accent: Bool = false) {
+        let image = popupImage(text: "+\(amount)", accent: accent)
+        let aspect = image.size.width / max(1, image.size.height)
+        let plane = SCNPlane(width: 0.55 * aspect, height: 0.55)
+        let m = SCNMaterial()
+        m.lightingModel = .constant
+        m.diffuse.contents = image
+        m.isDoubleSided = true
+        m.writesToDepthBuffer = false
+        plane.materials = [m]
+
+        let node = SCNNode(geometry: plane)
+        node.position = position
+        node.constraints = [SCNBillboardConstraint()]
+        node.renderingOrder = 50
+        node.castsShadow = false
+        rootNode.addChildNode(node)
+
+        let rise = SCNAction.moveBy(x: 0, y: 1.6, z: 0, duration: 0.8)
+        rise.timingMode = .easeOut
+        let fade = SCNAction.sequence([
+            SCNAction.wait(duration: 0.35),
+            SCNAction.fadeOut(duration: 0.45)
+        ])
+        node.runAction(SCNAction.sequence([
+            SCNAction.group([rise, fade]),
+            SCNAction.removeFromParentNode()
+        ]))
+    }
+
     // MARK: - Scoring & formations
 
     private func scoreValue(for kind: ObstacleKind) -> Int {
@@ -1038,8 +1121,10 @@ class GameScene: SCNScene {
 
     /// Counts the kill for score/hits and handles formation wipe bonuses.
     private func registerKill(_ obs: ObstacleNode) {
-        state.score += scoreValue(for: obs.kind)
+        let value = scoreValue(for: obs.kind)
+        state.score += value
         state.hits += 1
+        showScorePopup(value, at: obs.position)
 
         guard obs.isEnemy, obs.formationID != 0,
               var record = formations[obs.formationID] else { return }
@@ -1048,6 +1133,7 @@ class GameScene: SCNScene {
             formations[obs.formationID] = nil
             let bonus = record.total * 100
             state.score += bonus
+            showScorePopup(bonus, at: SCNVector3(obs.position.x, obs.position.y + 1.2, obs.position.z), accent: true)
             postRadio("FALCON", "Squadron wiped — nice shooting!")
         } else {
             formations[obs.formationID] = record
@@ -1104,8 +1190,15 @@ class GameScene: SCNScene {
             activeObstacles.removeAll { $0 === obs }
             applyDamage()
         case .pillar, .gate:
-            // Solid structures stay; the ship scrapes past.
+            // Solid structures stay; the scrape shears off the wing on
+            // the obstacle's side.
             applyDamage()
+            if !shipNode.hasBrokenWing {
+                let side: Float = obs.presentation.worldPosition.x >= shipNode.position.x ? 1 : -1
+                shipNode.breakWing(side: side)
+                state.wingDamaged = true
+                postRadio("TOAD", "Your wing's hit! Grab a shield unit!")
+            }
         default:
             break
         }
@@ -1115,6 +1208,7 @@ class GameScene: SCNScene {
         guard !gate.gateCleared else { return }
         gate.gateCleared = true
         state.score += 300
+        showScorePopup(300, at: SCNVector3(gate.position.x, gate.position.y + 2.2, gate.position.z), accent: true)
         SoundSystem.shared.play(.ring, volume: 0.45)
         postRadio("HARE", "Threaded the gate — bonus!", duration: 2.2)
     }
@@ -1125,6 +1219,7 @@ class GameScene: SCNScene {
         state.rings += 1
         state.shield = min(state.shield + 1, state.maxShield)
         state.score += 50
+        showScorePopup(50, at: ring.position)
         SoundSystem.shared.play(.ring, volume: 0.6)
         Haptics.shared.play(.pickup)
     }
@@ -1138,6 +1233,11 @@ class GameScene: SCNScene {
         switch pu.kind {
         case .powerShield:
             state.shield = min(state.shield + 2, state.maxShield)
+            if shipNode.hasBrokenWing {
+                shipNode.repairWings()
+                state.wingDamaged = false
+                postRadio("TOAD", "Wing repaired — twin lasers back!", duration: 2.2)
+            }
         case .powerTwin:
             state.twinLaserTimer = 8.0
             state.twinLaserActive = true
@@ -1254,6 +1354,7 @@ extension GameScene: SCNSceneRendererDelegate {
         advanceShip(dt: dt)
         applyTouchInput()
         applyRollDrift(dt: dt)
+        applyWingDrag(dt: dt)
         updateEnginePower(dt: dt, extraBoost: boostHeld ? 0.12 : 0)
         updateCamera(dt: dt)
         invulnTimer = max(0, invulnTimer - dt)
@@ -1273,9 +1374,12 @@ extension GameScene: SCNSceneRendererDelegate {
     }
 
     private func updateBossEncounter(dt: TimeInterval) {
-        advanceShip(dt: dt)
+        // All-range mode slows the rail to a crawl so the duel happens
+        // in place; normal guardians keep full corridor speed.
+        advanceShip(dt: dt, speedScale: state.allRangeBoss ? 0.3 : 1)
         applyTouchInput()
         applyRollDrift(dt: dt)
+        applyWingDrag(dt: dt)
         updateEnginePower(dt: dt, extraBoost: 0.08)
         updateCamera(dt: dt)
         invulnTimer = max(0, invulnTimer - dt)
@@ -1284,8 +1388,7 @@ extension GameScene: SCNSceneRendererDelegate {
         tryAutoFire()
 
         if let boss = bossNode {
-            boss.position.z = shipNode.position.z + 32
-            boss.update(dt: dt)
+            boss.update(dt: dt, shipPosition: shipNode.position, allRange: state.allRangeBoss)
             state.bossHealthRemaining = boss.health
 
             bossFireTimer += dt
@@ -1312,7 +1415,8 @@ extension GameScene: SCNSceneRendererDelegate {
 
         if phaseTimer >= 4.0 {
             phaseTimer = 0
-            state.nextLevel()  // sets phase to .levelIntro
+            shipNode.repairWings() // hangar fixes the airframe between sectors
+            state.nextLevel()      // sets phase to .levelIntro
             radioRollTipSent = true // only tip on the first sector
             radioLowShieldSent = false
         }

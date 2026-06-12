@@ -25,6 +25,9 @@ class GameState {
     var hits: Int = 0
     var boostGauge: Double = 1.0
     var twinLaserActive: Bool = false
+    var wingDamaged: Bool = false
+    var allRangeBoss: Bool = false
+    private(set) var maxSectorReached: Int = 1
 
     let maxShield: Int = 6
     let maxBombs: Int = 3
@@ -44,9 +47,11 @@ class GameState {
     var eventInterval: TimeInterval { max(1.2, 2.4 - Double(level - 1) * 0.18) }
 
     private static let hiScoreKey = "starfox.hiScore"
+    private static let maxSectorKey = "starfox.maxSector"
 
     init() {
         hiScore = UserDefaults.standard.integer(forKey: Self.hiScoreKey)
+        maxSectorReached = max(1, UserDefaults.standard.integer(forKey: Self.maxSectorKey))
     }
 
     func startNewGame() {
@@ -64,10 +69,26 @@ class GameState {
         boostGauge = 1.0
         twinLaserTimer = 0
         twinLaserActive = false
+        wingDamaged = false
+        allRangeBoss = false
         bossHealth = 10 + level * 5
         bossHealthRemaining = 0
         levelTimer = 0
         phase = .levelIntro
+
+        if level > maxSectorReached {
+            maxSectorReached = level
+            UserDefaults.standard.set(level, forKey: Self.maxSectorKey)
+        }
+    }
+
+    /// SNES-style continue: resume at the current sector with a fresh
+    /// loadout, but the score starts over.
+    func continueGame() {
+        score = 0
+        lives = 3
+        bombs = 2
+        startLevel()
     }
 
     func nextLevel() {
@@ -99,7 +120,10 @@ class GameState {
             twinLaser: twinLaserActive,
             sectorName: sectorName,
             bossHealth: bossHealthRemaining,
-            bossMaxHealth: bossHealth
+            bossMaxHealth: bossHealth,
+            wingDamaged: wingDamaged,
+            allRange: allRangeBoss,
+            maxSector: maxSectorReached
         )
     }
 }

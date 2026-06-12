@@ -27,6 +27,13 @@ class ShipNode: SCNNode {
     private(set) var isRolling = false
     private(set) var rollDirection: Float = 0
 
+    // Wing damage (SNES style): -1 left broken, +1 right broken, 0 intact.
+    private(set) var brokenWingSide: Float = 0
+    var hasBrokenWing: Bool { brokenWingSide != 0 }
+    private var leftWingParts: [SCNNode] = []
+    private var rightWingParts: [SCNNode] = []
+    private var wingSparkEmitter: SCNNode?
+
     private var engineGlowLight: SCNLight?
     private var engineCoreMaterials: [SCNMaterial] = []
     private var engineJetSystems: [SCNParticleSystem] = []
@@ -211,6 +218,13 @@ class ShipNode: SCNNode {
             cannon.eulerAngles.x = .pi / 2
             cannon.position = SCNVector3(side * 1.55, -0.18, 0.95)
             frame.addChildNode(cannon)
+
+            let parts = [wing, fin, strip, cannon]
+            if side < 0 {
+                ship.leftWingParts = parts
+            } else {
+                ship.rightWingParts = parts
+            }
         }
 
         // Twin tail fins — angled outward at the rear.
@@ -451,6 +465,46 @@ class ShipNode: SCNNode {
         currentBank = 0
         currentPitch = 0
         airframe.eulerAngles = SCNVector3Zero
+    }
+
+    // MARK: - Wing damage
+
+    /// Scraping a structure shears off the wing on that side: twin lasers
+    /// go offline and the ship pulls toward the stump until repaired.
+    func breakWing(side: Float) {
+        guard brokenWingSide == 0 else { return }
+        brokenWingSide = side >= 0 ? 1 : -1
+        let parts = brokenWingSide < 0 ? leftWingParts : rightWingParts
+        for part in parts { part.isHidden = true }
+
+        let sparks = SCNParticleSystem()
+        sparks.birthRate = 55
+        sparks.particleLifeSpan = 0.25
+        sparks.particleLifeSpanVariation = 0.08
+        sparks.particleSize = 0.06
+        sparks.particleColor = Self.engineGlowColor.withAlphaComponent(0.8)
+        sparks.blendMode = .additive
+        sparks.emittingDirection = SCNVector3(0, 0, -1)
+        sparks.particleVelocity = 3
+        sparks.particleVelocityVariation = 1.5
+        sparks.spreadingAngle = 40
+        sparks.stretchFactor = 2
+        sparks.isAffectedByGravity = false
+        sparks.isLightingEnabled = false
+
+        let emitter = SCNNode()
+        emitter.position = SCNVector3(brokenWingSide * 0.9, -0.1, 0.2)
+        emitter.addParticleSystem(sparks)
+        airframe.addChildNode(emitter)
+        wingSparkEmitter = emitter
+    }
+
+    func repairWings() {
+        guard brokenWingSide != 0 else { return }
+        brokenWingSide = 0
+        for part in leftWingParts + rightWingParts { part.isHidden = false }
+        wingSparkEmitter?.removeFromParentNode()
+        wingSparkEmitter = nil
     }
 
     /// Post-damage invulnerability blink, SNES style.

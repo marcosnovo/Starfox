@@ -134,12 +134,19 @@ class BossNode: SCNNode {
         return boss
     }
 
-    func update(dt: TimeInterval) {
+    /// On the rail the guardian holds a fixed distance ahead; in all-range
+    /// mode it also surges toward and away from the player.
+    func update(dt: TimeInterval, shipPosition: SCNVector3, allRange: Bool) {
         let speed: Float = 0.6 + Float(phase) * 0.30
         movementAngle += Float(dt) * speed
         let radius: Float = 5.0 + Float(phase)
         position.x = cos(movementAngle) * radius
         position.y = sin(movementAngle * 0.55) * 2.6
+        if allRange {
+            position.z = shipPosition.z + 30 + sin(movementAngle * 0.45) * 11
+        } else {
+            position.z = shipPosition.z + 32
+        }
 
         plateRig.eulerAngles.y += Float(dt) * (0.8 + Float(phase) * 0.55)
     }
