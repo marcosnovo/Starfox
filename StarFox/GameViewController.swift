@@ -2,6 +2,10 @@
 //  GameViewController.swift
 //  StarFox
 //
+//  Touch layout: drag anywhere to steer the Arwing. Right thumb cluster
+//  fires (hold for autofire), barrel-rolls and drops smart bombs; left
+//  thumb cluster boosts and brakes against the shared boost gauge.
+//
 
 import UIKit
 import SceneKit
@@ -14,7 +18,16 @@ class GameViewController: UIViewController {
     private var hudHosting: UIHostingController<HUDOverlay>?
 
     private var fireButton: UIButton!
+    private var rollButton: UIButton!
+    private var bombButton: UIButton!
+    private var boostButton: UIButton!
+    private var brakeButton: UIButton!
+    private var pauseButton: UIButton!
     private var exitButton: UIButton!
+
+    private var combatButtons: [UIButton] {
+        [fireButton, rollButton, bombButton, boostButton, brakeButton, pauseButton]
+    }
 
     // Touch tracking
     private var lastTouchPoint: CGPoint = .zero
@@ -61,48 +74,95 @@ class GameViewController: UIViewController {
         hudHosting = hosting
     }
 
-    private func setupControlButtons() {
-        fireButton = makeFireButton()
-        fireButton.addTarget(self, action: #selector(handleFireTap), for: .touchUpInside)
+    // MARK: - Controls
 
-        exitButton = makeExitButton()
+    private func setupControlButtons() {
+        fireButton = makeControlButton(title: "FIRE", diameter: 74, emphasized: true)
+        rollButton = makeControlButton(title: "ROLL", diameter: 54)
+        bombButton = makeControlButton(title: "BOMB", diameter: 54)
+        boostButton = makeControlButton(title: "BST", diameter: 54)
+        brakeButton = makeControlButton(title: "BRK", diameter: 54)
+        pauseButton = makeSmallButton(symbol: "pause")
+        exitButton = makeSmallButton(symbol: "xmark")
+
+        // Hold-style controls.
+        fireButton.addTarget(self, action: #selector(handleFireDown), for: .touchDown)
+        fireButton.addTarget(self, action: #selector(handleFireUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        boostButton.addTarget(self, action: #selector(handleBoostDown), for: .touchDown)
+        boostButton.addTarget(self, action: #selector(handleBoostUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        brakeButton.addTarget(self, action: #selector(handleBrakeDown), for: .touchDown)
+        brakeButton.addTarget(self, action: #selector(handleBrakeUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+
+        // Tap-style controls.
+        rollButton.addTarget(self, action: #selector(handleRollTap), for: .touchDown)
+        bombButton.addTarget(self, action: #selector(handleBombTap), for: .touchUpInside)
+        pauseButton.addTarget(self, action: #selector(handlePauseTap), for: .touchUpInside)
         exitButton.addTarget(self, action: #selector(handleExitTap), for: .touchUpInside)
 
-        view.addSubview(fireButton)
-        view.addSubview(exitButton)
-
-        fireButton.translatesAutoresizingMaskIntoConstraints = false
-        exitButton.translatesAutoresizingMaskIntoConstraints = false
+        for button in [fireButton, rollButton, bombButton, boostButton, brakeButton, pauseButton, exitButton] {
+            view.addSubview(button!)
+            button!.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         NSLayoutConstraint.activate([
-            fireButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            fireButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
-            fireButton.widthAnchor.constraint(equalToConstant: 60),
-            fireButton.heightAnchor.constraint(equalToConstant: 60),
+            // Right thumb cluster: FIRE with ROLL above and BOMB inboard.
+            fireButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -14),
+            fireButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -14),
+            fireButton.widthAnchor.constraint(equalToConstant: 74),
+            fireButton.heightAnchor.constraint(equalToConstant: 74),
 
-            exitButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
+            rollButton.trailingAnchor.constraint(equalTo: fireButton.trailingAnchor),
+            rollButton.bottomAnchor.constraint(equalTo: fireButton.topAnchor, constant: -12),
+            rollButton.widthAnchor.constraint(equalToConstant: 54),
+            rollButton.heightAnchor.constraint(equalToConstant: 54),
+
+            bombButton.trailingAnchor.constraint(equalTo: fireButton.leadingAnchor, constant: -12),
+            bombButton.bottomAnchor.constraint(equalTo: fireButton.bottomAnchor),
+            bombButton.widthAnchor.constraint(equalToConstant: 54),
+            bombButton.heightAnchor.constraint(equalToConstant: 54),
+
+            // Left thumb cluster: BOOST over BRAKE.
+            brakeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 14),
+            brakeButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -14),
+            brakeButton.widthAnchor.constraint(equalToConstant: 54),
+            brakeButton.heightAnchor.constraint(equalToConstant: 54),
+
+            boostButton.leadingAnchor.constraint(equalTo: brakeButton.leadingAnchor),
+            boostButton.bottomAnchor.constraint(equalTo: brakeButton.topAnchor, constant: -12),
+            boostButton.widthAnchor.constraint(equalToConstant: 54),
+            boostButton.heightAnchor.constraint(equalToConstant: 54),
+
+            pauseButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -14),
+            pauseButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            pauseButton.widthAnchor.constraint(equalToConstant: 28),
+            pauseButton.heightAnchor.constraint(equalToConstant: 28),
+
+            exitButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 14),
             exitButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             exitButton.widthAnchor.constraint(equalToConstant: 28),
             exitButton.heightAnchor.constraint(equalToConstant: 28)
         ])
     }
 
-    private func makeFireButton() -> UIButton {
+    private func makeControlButton(title: String, diameter: CGFloat, emphasized: Bool = false) -> UIButton {
         let button = UIButton(type: .system)
-        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
-        button.setImage(UIImage(systemName: "scope", withConfiguration: symbolConfig), for: .normal)
-        button.tintColor = UIColor.white.withAlphaComponent(0.78)
-        button.backgroundColor = UIColor.white.withAlphaComponent(0.14)
-        button.layer.cornerRadius = 30
-        button.layer.borderColor = UIColor.white.withAlphaComponent(0.22).cgColor
-        button.layer.borderWidth = 0.8
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.font = .monospacedSystemFont(ofSize: emphasized ? 13 : 11, weight: .bold)
+        let accent = UIColor(red: 0.95, green: 0.58, blue: 0.33, alpha: 1)
+        button.setTitleColor(emphasized ? accent : UIColor.white.withAlphaComponent(0.80), for: .normal)
+        button.backgroundColor = UIColor.white.withAlphaComponent(emphasized ? 0.16 : 0.12)
+        button.layer.cornerRadius = diameter / 2
+        button.layer.borderColor = (emphasized
+            ? accent.withAlphaComponent(0.45)
+            : UIColor.white.withAlphaComponent(0.22)).cgColor
+        button.layer.borderWidth = 1.0
         return button
     }
 
-    private func makeExitButton() -> UIButton {
+    private func makeSmallButton(symbol: String) -> UIButton {
         let button = UIButton(type: .system)
         let symbolConfig = UIImage.SymbolConfiguration(pointSize: 10, weight: .semibold)
-        button.setImage(UIImage(systemName: "xmark", withConfiguration: symbolConfig), for: .normal)
+        button.setImage(UIImage(systemName: symbol, withConfiguration: symbolConfig), for: .normal)
         button.tintColor = UIColor.white.withAlphaComponent(0.72)
         button.backgroundColor = UIColor.white.withAlphaComponent(0.12)
         button.layer.cornerRadius = 14
@@ -119,22 +179,40 @@ class GameViewController: UIViewController {
     }
 
     private func applyControls(for phase: GamePhase) {
-        let showFire = phase == .playing || phase == .bossEncounter
+        let inCombat = phase == .playing || phase == .bossEncounter
+        for button in combatButtons {
+            button.isHidden = !inCombat
+            button.isEnabled = inCombat
+        }
+        if !inCombat {
+            // Make sure no held control stays latched across phase changes.
+            gameScene.setFiring(false)
+            gameScene.setBoosting(false)
+            gameScene.setBraking(false)
+        }
+
         let showExit = phase != .menu
-
-        fireButton.isHidden = !showFire
-        fireButton.isEnabled = showFire
-
         exitButton.isHidden = !showExit
         exitButton.isEnabled = showExit
     }
 
-    @objc private func handleFireTap() {
-        gameScene.requestFire()
-    }
+    // MARK: - Button actions
+
+    @objc private func handleFireDown() { gameScene.setFiring(true) }
+    @objc private func handleFireUp() { gameScene.setFiring(false) }
+    @objc private func handleBoostDown() { gameScene.setBoosting(true) }
+    @objc private func handleBoostUp() { gameScene.setBoosting(false) }
+    @objc private func handleBrakeDown() { gameScene.setBraking(true) }
+    @objc private func handleBrakeUp() { gameScene.setBraking(false) }
+    @objc private func handleRollTap() { gameScene.requestBarrelRoll() }
+    @objc private func handleBombTap() { gameScene.requestBomb() }
+    @objc private func handlePauseTap() { gameScene.requestPauseGame() }
 
     @objc private func handleExitTap() {
         gameScene.setDragging(false)
+        gameScene.setFiring(false)
+        gameScene.setBoosting(false)
+        gameScene.setBraking(false)
         gameScene.requestExitToMenu()
     }
 
@@ -152,6 +230,8 @@ class GameViewController: UIViewController {
             return
         case .paused:
             gameScene.requestResumeGame()
+            return
+        case .levelIntro, .levelComplete:
             return
         case .playing, .bossEncounter:
             break
