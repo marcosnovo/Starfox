@@ -428,7 +428,9 @@ class GameScene: SCNScene {
             state.startNewGame()
             phaseTimer = 0
         } else if shouldResume, state.phase == .paused {
-            state.phase = .playing
+            // Resume into the boss fight if one is in progress, otherwise
+            // updatePlaying would spawn a duplicate full-health boss.
+            state.phase = bossNode != nil ? .bossEncounter : .playing
         } else if shouldPause, state.phase == .playing || state.phase == .bossEncounter {
             state.phase = .paused
         }
@@ -834,6 +836,7 @@ class GameScene: SCNScene {
     // MARK: - Boss
 
     private func startBossEncounter() {
+        guard bossNode == nil else { return }
         state.phase = .bossEncounter
         for o in activeObstacles { o.removeFromParentNode() }
         activeObstacles.removeAll()
