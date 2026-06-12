@@ -31,6 +31,7 @@ class GameState {
     let levelDuration: TimeInterval = 75.0
 
     var bossHealth: Int = 0
+    var bossHealthRemaining: Int = 0
     var twinLaserTimer: TimeInterval = 0
     var levelTimer: TimeInterval = 0
 
@@ -64,6 +65,7 @@ class GameState {
         twinLaserTimer = 0
         twinLaserActive = false
         bossHealth = 10 + level * 5
+        bossHealthRemaining = 0
         levelTimer = 0
         phase = .levelIntro
     }
@@ -95,7 +97,9 @@ class GameState {
             // Quantized so the throttled HUD doesn't churn on tiny changes.
             boost: (boostGauge * 20).rounded() / 20,
             twinLaser: twinLaserActive,
-            sectorName: sectorName
+            sectorName: sectorName,
+            bossHealth: bossHealthRemaining,
+            bossMaxHealth: bossHealth
         )
     }
 }

@@ -145,58 +145,6 @@ func comicMaterial(_ color: UIColor, emission: UIColor? = nil) -> SCNMaterial {
     return material
 }
 
-enum ShipLookPreset {
-    case cenital
-    case frontal
-
-    // Cambia esta linea para alternar rapido entre presets.
-    static let current: ShipLookPreset = .cenital
-
-    var shipScale: Float {
-        switch self {
-        case .cenital: return 1.95
-        case .frontal: return 1.72
-        }
-    }
-
-    var shipEulerAngles: SCNVector3 {
-        switch self {
-        case .cenital:
-            return SCNVector3(0.08, Float.pi * 0.93, -0.16)
-        case .frontal:
-            return SCNVector3(0.03, Float.pi * 0.95, -0.08)
-        }
-    }
-
-    var shipInkScale: Float {
-        switch self {
-        case .cenital: return 1.05
-        case .frontal: return 1.07
-        }
-    }
-
-    var cameraPosition: SCNVector3 {
-        switch self {
-        case .cenital: return SCNVector3(1.1, 4.15, -7.8)
-        case .frontal: return SCNVector3(0.55, 3.45, -9.4)
-        }
-    }
-
-    var cameraLookAt: SCNVector3 {
-        switch self {
-        case .cenital: return SCNVector3(-0.9, 0.95, 3.0)
-        case .frontal: return SCNVector3(-0.35, 0.85, 4.4)
-        }
-    }
-
-    var cameraFieldOfView: CGFloat {
-        switch self {
-        case .cenital: return 56
-        case .frontal: return 60
-        }
-    }
-}
-
 extension SCNNode {
     func addInkOutline(scale: Float = 1.08) {
         guard name != "__ink",

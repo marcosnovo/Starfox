@@ -247,6 +247,13 @@ struct HUDOverlay: View {
                     .foregroundColor(.hudMint)
 
                 HUDLabel(text: "HI-SCORE  \(formatNumber(state.hiScore))", size: 12)
+
+                VStack(spacing: 3) {
+                    HUDLabel(text: "DRAG — STEER   ·   HOLD FIRE — LASERS", size: 10)
+                    HUDLabel(text: "DOUBLE TAP OR ROLL — BARREL ROLL", size: 10)
+                    HUDLabel(text: "BST/BRK — THROTTLE   ·   BOMB — CLEAR SKY", size: 10)
+                }
+                .padding(.top, 6)
             }
         }
     }
@@ -322,7 +329,7 @@ struct HUDOverlay: View {
     }
 
     private var bossBanner: some View {
-        VStack {
+        VStack(spacing: 6) {
             HStack(spacing: 8) {
                 HUDLabel(text: "⚠", size: 14, color: .hudOrange)
                 Text("SECTOR GUARDIAN")
@@ -331,6 +338,22 @@ struct HUDOverlay: View {
                 HUDLabel(text: "⚠", size: 14, color: .hudOrange)
             }
             .padding(.top, 52)
+
+            // Boss health bar.
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(Color.hudPanel)
+                    .frame(width: 200, height: 7)
+                Rectangle()
+                    .fill(Color.hudOrange)
+                    .frame(
+                        width: max(2, 200 * CGFloat(state.bossHealth) / CGFloat(max(1, state.bossMaxHealth))),
+                        height: 7
+                    )
+            }
+            .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
+            .animation(.linear(duration: 0.12), value: state.bossHealth)
+
             Spacer()
         }
     }

@@ -527,6 +527,8 @@ class GameScene: SCNScene {
         guard !shipNode.isRolling else { return }
         let direction: Float = shipNode.airframe.eulerAngles.z >= 0 ? 1 : -1
         shipNode.barrelRoll(direction: direction)
+        SoundSystem.shared.play(.roll, volume: 0.6)
+        Haptics.shared.play(.roll)
     }
 
     // MARK: - Reset
@@ -596,6 +598,7 @@ class GameScene: SCNScene {
     private func postRadio(_ callsign: String, _ text: String, duration: TimeInterval = 3.4) {
         let message = RadioMessage(callsign: callsign, text: text)
         let hudRef = hud
+        SoundSystem.shared.play(.radio, volume: 0.4)
         DispatchQueue.main.async {
             hudRef.showRadio(message, duration: duration)
         }
@@ -607,16 +610,35 @@ class GameScene: SCNScene {
         case enemyFormation, asteroidCluster, ringLine, gate, pillars, powerUp
     }
 
+    /// Each sector has its own flavor: Corneria is urban (gates, pillars),
+    /// the Asteroid Belt is rock-heavy, the Space Armada is fighter swarms,
+    /// Sector X is a twisting gauntlet, and Venom throws everything at you.
     private func pickWaveEvent() -> WaveEvent {
-        let roll = Double.random(in: 0...1)
-        switch roll {
-        case ..<0.38: return .enemyFormation
-        case ..<0.58: return .asteroidCluster
-        case ..<0.70: return .ringLine
-        case ..<0.80: return .gate
-        case ..<0.91: return .pillars
-        default:      return .powerUp
+        let weights: [(WaveEvent, Double)]
+        switch (state.level - 1) % GameState.sectorNames.count {
+        case 0: // CORNERIA
+            weights = [(.enemyFormation, 0.30), (.asteroidCluster, 0.08), (.ringLine, 0.14),
+                       (.gate, 0.18), (.pillars, 0.20), (.powerUp, 0.10)]
+        case 1: // ASTEROID BELT
+            weights = [(.enemyFormation, 0.22), (.asteroidCluster, 0.48), (.ringLine, 0.12),
+                       (.gate, 0.06), (.pillars, 0.00), (.powerUp, 0.12)]
+        case 2: // SPACE ARMADA
+            weights = [(.enemyFormation, 0.52), (.asteroidCluster, 0.12), (.ringLine, 0.12),
+                       (.gate, 0.08), (.pillars, 0.06), (.powerUp, 0.10)]
+        case 3: // SECTOR X
+            weights = [(.enemyFormation, 0.32), (.asteroidCluster, 0.20), (.ringLine, 0.10),
+                       (.gate, 0.20), (.pillars, 0.10), (.powerUp, 0.08)]
+        default: // VENOM
+            weights = [(.enemyFormation, 0.42), (.asteroidCluster, 0.24), (.ringLine, 0.08),
+                       (.gate, 0.08), (.pillars, 0.12), (.powerUp, 0.06)]
         }
+
+        var roll = Double.random(in: 0..<1)
+        for (event, weight) in weights {
+            if roll < weight { return event }
+            roll -= weight
+        }
+        return .enemyFormation
     }
 
     private func runWaveDirector(dt: TimeInterval) {
@@ -795,6 +817,7 @@ class GameScene: SCNScene {
 
         rootNode.addChildNode(bolt)
         activeEnemyBolts.append(bolt)
+        SoundSystem.shared.play(.enemyLaser, volume: 0.22)
     }
 
     // MARK: - Player fire
@@ -822,6 +845,7 @@ class GameScene: SCNScene {
         } else {
             spawnLaserBolt(from: shipNode.muzzleWorldPosition(ShipNode.noseMuzzleLocal), toward: aim)
         }
+        SoundSystem.shared.play(.laser, volume: 0.5)
     }
 
     private func spawnLaserBolt(from origin: SCNVector3, toward target: SCNVector3) {
@@ -878,6 +902,8 @@ class GameScene: SCNScene {
         guard state.bombs > 0 else { return }
         state.bombs -= 1
         cameraShakeImpulse = 0.05
+        SoundSystem.shared.play(.bomb, volume: 1.0)
+        Haptics.shared.play(.bomb)
 
         let shipZ = shipNode.position.z
         let victims = activeObstacles.filter {
@@ -923,6 +949,8 @@ class GameScene: SCNScene {
         rootNode.addChildNode(boss)
         bossNode = boss
         bossFireTimer = 0
+        state.bossHealthRemaining = boss.health
+        SoundSystem.shared.play(.bossAlarm, volume: 0.7)
         postRadio("HQ", "Enemy guardian ahead — aim for the core!")
     }
 
@@ -964,6 +992,9 @@ class GameScene: SCNScene {
 
         boss.removeFromParentNode()
         bossNode = nil
+        state.bossHealthRemaining = 0
+        SoundSystem.shared.play(.explosion, volume: 1.0)
+        Haptics.shared.play(.bomb)
 
         let bonus = 1000 + state.hits * 10
         state.score += bonus
@@ -1037,6 +1068,7 @@ class GameScene: SCNScene {
         activeBolts.removeAll { $0 === projectile }
         guard let boss = bossNode else { return }
         state.score += 25
+        SoundSystem.shared.play(.hit, volume: 0.35)
         if boss.takeDamage() { bossDefeated() }
     }
 
@@ -1048,10 +1080,13 @@ class GameScene: SCNScene {
         obs.health -= 1
         guard obs.health <= 0 else {
             obs.hitPop()
+            SoundSystem.shared.play(.hit, volume: 0.5)
             return
         }
 
         particleFX.explode(at: obs.position)
+        SoundSystem.shared.play(.explosion, volume: 0.55)
+        Haptics.shared.play(.kill)
         registerKill(obs)
         obs.removeFromParentNode()
         activeObstacles.removeAll { $0 === obs }
@@ -1080,6 +1115,7 @@ class GameScene: SCNScene {
         guard !gate.gateCleared else { return }
         gate.gateCleared = true
         state.score += 300
+        SoundSystem.shared.play(.ring, volume: 0.45)
         postRadio("HARE", "Threaded the gate — bonus!", duration: 2.2)
     }
 
@@ -1089,11 +1125,15 @@ class GameScene: SCNScene {
         state.rings += 1
         state.shield = min(state.shield + 1, state.maxShield)
         state.score += 50
+        SoundSystem.shared.play(.ring, volume: 0.6)
+        Haptics.shared.play(.pickup)
     }
 
     private func handleShipHitPowerUp(_ pu: ObstacleNode) {
         pu.removeFromParentNode()
         activeObstacles.removeAll { $0 === pu }
+        SoundSystem.shared.play(.powerUp, volume: 0.7)
+        Haptics.shared.play(.pickup)
 
         switch pu.kind {
         case .powerShield:
@@ -1117,6 +1157,7 @@ class GameScene: SCNScene {
             // Barrel roll deflects incoming fire.
             state.score += 25
             cameraShakeImpulse = min(0.03, cameraShakeImpulse + 0.012)
+            SoundSystem.shared.play(.hit, volume: 0.6)
         } else {
             applyDamage()
         }
@@ -1128,6 +1169,8 @@ class GameScene: SCNScene {
         guard invulnTimer <= 0 else { return }
         invulnTimer = 1.1
         shipNode.flashInvulnerable(duration: 1.1)
+        SoundSystem.shared.play(.damage, volume: 0.8)
+        Haptics.shared.play(.damage)
 
         cameraShakeImpulse = min(0.05, cameraShakeImpulse + 0.04)
         state.shield -= 1
@@ -1143,6 +1186,7 @@ class GameScene: SCNScene {
                 bossNode?.removeFromParentNode()
                 bossNode = nil
                 state.registerGameOver()
+                Haptics.shared.play(.gameOver)
             } else {
                 state.shield = state.maxShield
                 postRadio("HQ", "Reserve ship deployed. Stay focused!")
@@ -1242,6 +1286,7 @@ extension GameScene: SCNSceneRendererDelegate {
         if let boss = bossNode {
             boss.position.z = shipNode.position.z + 32
             boss.update(dt: dt)
+            state.bossHealthRemaining = boss.health
 
             bossFireTimer += dt
             if bossFireTimer >= boss.attackInterval {

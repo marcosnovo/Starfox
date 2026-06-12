@@ -28,6 +28,8 @@ struct HUDSnapshot {
     let boost: Double
     let twinLaser: Bool
     let sectorName: String
+    let bossHealth: Int
+    let bossMaxHealth: Int
 }
 
 final class HUDModel: ObservableObject {
@@ -42,6 +44,8 @@ final class HUDModel: ObservableObject {
     @Published var boost: Double = 1.0
     @Published var twinLaser: Bool = false
     @Published var sectorName: String = ""
+    @Published var bossHealth: Int = 0
+    @Published var bossMaxHealth: Int = 1
     @Published var radio: RadioMessage?
 
     let maxShield: Int = 6
@@ -63,6 +67,8 @@ final class HUDModel: ObservableObject {
         if boost != s.boost { boost = s.boost }
         if twinLaser != s.twinLaser { twinLaser = s.twinLaser }
         if sectorName != s.sectorName { sectorName = s.sectorName }
+        if bossHealth != s.bossHealth { bossHealth = s.bossHealth }
+        if bossMaxHealth != s.bossMaxHealth { bossMaxHealth = s.bossMaxHealth }
     }
 
     func showRadio(_ message: RadioMessage, duration: TimeInterval) {

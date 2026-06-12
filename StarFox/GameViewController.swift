@@ -47,6 +47,10 @@ class GameViewController: UIViewController {
         setupHUD()
         setupControlButtons()
         bindSceneCallbacks()
+
+        // Build synth buffers / haptic generators before combat starts.
+        _ = SoundSystem.shared
+        Haptics.shared.warmUp()
     }
 
     private func setupSceneView() {
