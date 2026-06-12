@@ -16,11 +16,44 @@ final class BoltNode: SCNNode {
     var velocity = SCNVector3Zero
 }
 
+/// Shared geometry, materials and physics shapes for bolts. Everything in
+/// the corridor uses constant-lighting materials, so bolts carry no
+/// dynamic lights — emission does all the visual work for free.
+private enum BoltAssets {
+    static let laserGeometry: SCNGeometry = {
+        let geom = SCNCapsule(capRadius: 0.07, height: 2.6)
+        let m = SCNMaterial()
+        m.lightingModel = .constant
+        m.diffuse.contents = UIColor.cMintHighlight
+        m.emission.contents = UIColor.cMintMetal
+        geom.materials = [m]
+        return geom
+    }()
+    static let laserShape = SCNPhysicsShape(
+        geometry: SCNCylinder(radius: 0.16, height: 2.8), options: nil
+    )
+
+    static let enemyGeometry: SCNGeometry = {
+        let geom = SCNSphere(radius: 0.32)
+        let m = SCNMaterial()
+        m.lightingModel = .constant
+        m.diffuse.contents = UIColor(hex: "#D07040")
+        m.emission.contents = UIColor(hex: "#A05030")
+        geom.materials = [m]
+        return geom
+    }()
+    static let enemyShape = SCNPhysicsShape(
+        geometry: SCNSphere(radius: 0.4), options: nil
+    )
+}
+
 class GameScene: SCNScene {
 
     // MARK: - Public
 
     let state = GameState()
+    /// Main-thread mirror of the state, observed by SwiftUI.
+    let hud = HUDModel()
     var cameraNode: SCNNode!
     var onPhaseChanged: ((GamePhase) -> Void)?
 
@@ -74,6 +107,9 @@ class GameScene: SCNScene {
     private var cameraShakePhase: TimeInterval = 0
     private var enginePowerCurrent: CGFloat = 0.68
     private var forwardSpeedCurrent: Float = 16
+    private var invulnTimer: TimeInterval = 0
+    private var hudSyncAccumulator: TimeInterval = 0
+    private var speedLines: SCNParticleSystem?
 
     private var activeObstacles: [ObstacleNode] = []
     private var activeBolts: [BoltNode] = []
@@ -237,7 +273,32 @@ class GameScene: SCNScene {
         cameraFill.light = cameraFillLight
         cameraNode.addChildNode(cameraFill)
 
+        setupSpeedLines()
         rootNode.addChildNode(cameraNode)
+    }
+
+    /// Mint streaks that rush past the camera while boosting.
+    private func setupSpeedLines() {
+        let lines = SCNParticleSystem()
+        lines.birthRate = 0
+        lines.particleLifeSpan = 0.35
+        lines.particleLifeSpanVariation = 0.08
+        lines.particleSize = 0.05
+        lines.particleColor = UIColor.cMintHighlight.withAlphaComponent(0.40)
+        lines.blendMode = .additive
+        lines.emittingDirection = SCNVector3(0, 0, -1)
+        lines.particleVelocity = 55
+        lines.particleVelocityVariation = 10
+        lines.stretchFactor = 9
+        lines.isAffectedByGravity = false
+        lines.isLightingEnabled = false
+        lines.emitterShape = SCNBox(width: 16, height: 10, length: 1, chamferRadius: 0)
+
+        let emitter = SCNNode()
+        emitter.position = SCNVector3(0, 0, 26)
+        emitter.addParticleSystem(lines)
+        cameraNode.addChildNode(emitter)
+        speedLines = lines
     }
 
     private func updateCamera(dt: TimeInterval) {
@@ -260,6 +321,9 @@ class GameScene: SCNScene {
         let targetFOV = cameraBaseFOV + (rollInfluence * 2.5) + (boostInfluence * 6.0) - (brakeInfluence * 3.0)
         cameraCurrentFOV += (targetFOV - cameraCurrentFOV) * 0.07
         cameraNode.camera?.fieldOfView = cameraCurrentFOV
+
+        let combat = state.phase == .playing || state.phase == .bossEncounter
+        speedLines?.birthRate = (combat && boostInfluence > 0) ? 130 : 0
 
         cameraShakeImpulse = max(0, cameraShakeImpulse - CGFloat(dt) * 2.8)
         let totalShake = min(0.05, cameraShakeImpulse)
@@ -291,7 +355,7 @@ class GameScene: SCNScene {
         rootNode.addChildNode(projectileContainer)
     }
 
-    private func makeReticle(radius: CGFloat, opacity: CGFloat) -> SCNNode {
+    private func makeReticle(radius: CGFloat, opacity: CGFloat, spinning: Bool) -> SCNNode {
         let node = SCNNode()
         let mint = UIColor.cMintHighlight
 
@@ -305,7 +369,9 @@ class GameScene: SCNScene {
         torus.eulerAngles.x = .pi / 2
         node.addChildNode(torus)
 
-        // Four corner ticks, SNES targeting bracket style.
+        // Four corner ticks, SNES targeting bracket style, in their own
+        // container so the bracket can orbit as a unit.
+        let bracket = SCNNode()
         for i in 0..<4 {
             let angle = Float(i) * .pi / 2 + .pi / 4
             let tickGeom = SCNBox(width: 0.04, height: CGFloat(radius) * 0.45, length: 0.04, chamferRadius: 0)
@@ -313,7 +379,13 @@ class GameScene: SCNScene {
             let tick = SCNNode(geometry: tickGeom)
             tick.position = SCNVector3(cos(angle) * Float(radius) * 1.25, sin(angle) * Float(radius) * 1.25, 0)
             tick.eulerAngles.z = angle + .pi / 2
-            node.addChildNode(tick)
+            bracket.addChildNode(tick)
+        }
+        node.addChildNode(bracket)
+        if spinning {
+            bracket.runAction(SCNAction.repeatForever(
+                SCNAction.rotateBy(x: 0, y: 0, z: .pi * 2, duration: 6.0)
+            ))
         }
 
         let billboard = SCNBillboardConstraint()
@@ -325,8 +397,8 @@ class GameScene: SCNScene {
     }
 
     private func setupReticles() {
-        reticleNear = makeReticle(radius: 0.55, opacity: 0.75)
-        reticleFar = makeReticle(radius: 0.9, opacity: 0.45)
+        reticleNear = makeReticle(radius: 0.55, opacity: 0.75, spinning: false)
+        reticleFar = makeReticle(radius: 0.9, opacity: 0.45, spinning: true)
         rootNode.addChildNode(reticleNear)
         rootNode.addChildNode(reticleFar)
         reticleNear.isHidden = true
@@ -375,6 +447,13 @@ class GameScene: SCNScene {
         shipNode.position.x = (shipNode.position.x + dx).clamped(to: corridorX)
         shipNode.position.y = (shipNode.position.y - dy).clamped(to: corridorY)
         shipNode.applyTilt(dx * 5.5, dy: dy * 5.5)
+    }
+
+    /// SNES-style sideways slide while barrel rolling.
+    private func applyRollDrift(dt: TimeInterval) {
+        guard shipNode.isRolling else { return }
+        let drift = shipNode.rollDirection * 5.5 * Float(dt)
+        shipNode.position.x = (shipNode.position.x + drift).clamped(to: corridorX)
     }
 
     private func updateEnginePower(dt: TimeInterval, extraBoost: CGFloat) {
@@ -478,6 +557,8 @@ class GameScene: SCNScene {
         fireTimer = fireCooldown
         bossFireTimer = 0
         phaseTimer = 0
+        invulnTimer = 0
+        speedLines?.birthRate = 0
         radioRollTipSent = false
         radioLowShieldSent = false
 
@@ -490,9 +571,33 @@ class GameScene: SCNScene {
     private func publishPhaseIfNeeded() {
         guard state.phase != lastPublishedPhase else { return }
         lastPublishedPhase = state.phase
+        syncHUD(dt: 0, force: true)
+        let phase = state.phase
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.onPhaseChanged?(self.state.phase)
+            self?.onPhaseChanged?(phase)
+        }
+    }
+
+    // MARK: - HUD bridge (render thread → main)
+
+    /// Pushes a snapshot of the game state to the HUD at ~10 Hz (or
+    /// immediately when forced, e.g. on phase changes).
+    private func syncHUD(dt: TimeInterval, force: Bool = false) {
+        hudSyncAccumulator += dt
+        guard force || hudSyncAccumulator >= 0.1 else { return }
+        hudSyncAccumulator = 0
+        let snapshot = state.makeHUDSnapshot()
+        let hudRef = hud
+        DispatchQueue.main.async {
+            hudRef.apply(snapshot)
+        }
+    }
+
+    private func postRadio(_ callsign: String, _ text: String, duration: TimeInterval = 3.4) {
+        let message = RadioMessage(callsign: callsign, text: text)
+        let hudRef = hud
+        DispatchQueue.main.async {
+            hudRef.showRadio(message, duration: duration)
         }
     }
 
@@ -658,20 +763,14 @@ class GameScene: SCNScene {
 
             if !radioRollTipSent {
                 radioRollTipSent = true
-                state.postRadio("HARE", "Do a barrel roll!")
+                postRadio("HARE", "Do a barrel roll!")
             }
         }
     }
 
     private func spawnEnemyBolt(from origin: SCNVector3, speed: Float, direction: SCNVector3? = nil) {
         let bolt = BoltNode()
-        let geom = SCNSphere(radius: 0.32)
-        let m = SCNMaterial()
-        m.lightingModel = .constant
-        m.diffuse.contents = UIColor(hex: "#D07040")
-        m.emission.contents = UIColor(hex: "#A05030")
-        geom.materials = [m]
-        bolt.geometry = geom
+        bolt.geometry = BoltAssets.enemyGeometry
         bolt.position = origin
         bolt.name = "enemyBolt"
 
@@ -688,18 +787,7 @@ class GameScene: SCNScene {
         }
         bolt.velocity = SCNVector3(dir.x * speed, dir.y * speed, dir.z * speed)
 
-        let bl = SCNLight()
-        bl.type = .omni
-        bl.color = UIColor(hex: "#D07040")
-        bl.attenuationStartDistance = 0
-        bl.attenuationEndDistance = 4
-        bl.intensity = 250
-        let blNode = SCNNode()
-        blNode.light = bl
-        bolt.addChildNode(blNode)
-
-        let shape = SCNPhysicsShape(geometry: SCNSphere(radius: 0.4), options: nil)
-        let body = SCNPhysicsBody(type: .kinematic, shape: shape)
+        let body = SCNPhysicsBody(type: .kinematic, shape: BoltAssets.enemyShape)
         body.categoryBitMask = PhysicsCategory.enemyBullet
         body.contactTestBitMask = PhysicsCategory.ship
         body.collisionBitMask = PhysicsCategory.none
@@ -738,13 +826,7 @@ class GameScene: SCNScene {
 
     private func spawnLaserBolt(from origin: SCNVector3, toward target: SCNVector3) {
         let bolt = BoltNode()
-        let geom = SCNCapsule(capRadius: 0.07, height: 2.6)
-        let m = SCNMaterial()
-        m.lightingModel = .constant
-        m.diffuse.contents = UIColor.cMintHighlight
-        m.emission.contents = UIColor.cMintMetal
-        geom.materials = [m]
-        bolt.geometry = geom
+        bolt.geometry = BoltAssets.laserGeometry
         bolt.position = origin
         bolt.name = "projectile"
 
@@ -760,18 +842,7 @@ class GameScene: SCNScene {
             localFront: SCNVector3(0, 1, 0)
         )
 
-        let light = SCNLight()
-        light.type = .omni
-        light.color = UIColor.cMintHighlight
-        light.attenuationStartDistance = 0
-        light.attenuationEndDistance = 3
-        light.intensity = 220
-        let lightNode = SCNNode()
-        lightNode.light = light
-        bolt.addChildNode(lightNode)
-
-        let shape = SCNPhysicsShape(geometry: SCNCylinder(radius: 0.16, height: 2.8), options: nil)
-        let body = SCNPhysicsBody(type: .kinematic, shape: shape)
+        let body = SCNPhysicsBody(type: .kinematic, shape: BoltAssets.laserShape)
         body.categoryBitMask = PhysicsCategory.projectile
         body.contactTestBitMask = PhysicsCategory.obstacle
         body.collisionBitMask = PhysicsCategory.none
@@ -844,10 +915,15 @@ class GameScene: SCNScene {
 
         let boss = BossNode.create(health: state.bossHealth)
         boss.position = SCNVector3(0, 0, shipNode.position.z + 45)
+        // Dramatic warp-in: scale up from a point.
+        boss.scale = SCNVector3(0.01, 0.01, 0.01)
+        let grow = SCNAction.scale(to: 1.0, duration: 0.8)
+        grow.timingMode = .easeOut
+        boss.runAction(grow)
         rootNode.addChildNode(boss)
         bossNode = boss
         bossFireTimer = 0
-        state.postRadio("HQ", "Enemy guardian ahead — aim for the core!")
+        postRadio("HQ", "Enemy guardian ahead — aim for the core!")
     }
 
     private func bossAttack(_ boss: BossNode) {
@@ -891,7 +967,7 @@ class GameScene: SCNScene {
 
         let bonus = 1000 + state.hits * 10
         state.score += bonus
-        state.postRadio("HQ", "Mission complete! Returning to base.")
+        postRadio("HQ", "Mission complete! Returning to base.")
         state.phase = .levelComplete
         phaseTimer = 0
     }
@@ -941,7 +1017,7 @@ class GameScene: SCNScene {
             formations[obs.formationID] = nil
             let bonus = record.total * 100
             state.score += bonus
-            state.postRadio("FALCON", "Squadron wiped — nice shooting!")
+            postRadio("FALCON", "Squadron wiped — nice shooting!")
         } else {
             formations[obs.formationID] = record
         }
@@ -970,7 +1046,10 @@ class GameScene: SCNScene {
 
         guard obs.isHostile else { return }
         obs.health -= 1
-        guard obs.health <= 0 else { return }
+        guard obs.health <= 0 else {
+            obs.hitPop()
+            return
+        }
 
         particleFX.explode(at: obs.position)
         registerKill(obs)
@@ -1001,7 +1080,7 @@ class GameScene: SCNScene {
         guard !gate.gateCleared else { return }
         gate.gateCleared = true
         state.score += 300
-        state.postRadio("HARE", "Threaded the gate — bonus!", duration: 2.2)
+        postRadio("HARE", "Threaded the gate — bonus!", duration: 2.2)
     }
 
     private func handleShipHitRing(_ ring: ObstacleNode) {
@@ -1022,7 +1101,7 @@ class GameScene: SCNScene {
         case .powerTwin:
             state.twinLaserTimer = 8.0
             state.twinLaserActive = true
-            state.postRadio("TOAD", "Twin lasers online!", duration: 2.2)
+            postRadio("TOAD", "Twin lasers online!", duration: 2.2)
         case .powerBomb:
             state.bombs = min(state.bombs + 1, state.maxBombs)
         default:
@@ -1044,12 +1123,18 @@ class GameScene: SCNScene {
     }
 
     private func applyDamage() {
+        // Brief post-hit invulnerability so overlapping bolts/spreads don't
+        // strip several shield cells in a single instant.
+        guard invulnTimer <= 0 else { return }
+        invulnTimer = 1.1
+        shipNode.flashInvulnerable(duration: 1.1)
+
         cameraShakeImpulse = min(0.05, cameraShakeImpulse + 0.04)
         state.shield -= 1
 
         if state.shield <= 2 && state.shield > 0 && !radioLowShieldSent {
             radioLowShieldSent = true
-            state.postRadio("TOAD", "Shields critical — grab a ring!")
+            postRadio("TOAD", "Shields critical — grab a ring!")
         }
 
         if state.shield <= 0 {
@@ -1060,7 +1145,7 @@ class GameScene: SCNScene {
                 state.registerGameOver()
             } else {
                 state.shield = state.maxShield
-                state.postRadio("HQ", "Reserve ship deployed. Stay focused!")
+                postRadio("HQ", "Reserve ship deployed. Stay focused!")
             }
         }
     }
@@ -1101,6 +1186,7 @@ extension GameScene: SCNSceneRendererDelegate {
         updateReticles()
 
         publishPhaseIfNeeded()
+        syncHUD(dt: dt)
     }
 
     private func updateLevelIntro(dt: TimeInterval) {
@@ -1116,15 +1202,17 @@ extension GameScene: SCNSceneRendererDelegate {
         if phaseTimer >= 3.0 {
             phaseTimer = 0
             state.phase = .playing
-            state.postRadio("HQ", "Entering \(state.sectorName). All ships check in!")
+            postRadio("HQ", "Entering \(state.sectorName). All ships check in!")
         }
     }
 
     private func updatePlaying(dt: TimeInterval) {
         advanceShip(dt: dt)
         applyTouchInput()
+        applyRollDrift(dt: dt)
         updateEnginePower(dt: dt, extraBoost: boostHeld ? 0.12 : 0)
         updateCamera(dt: dt)
+        invulnTimer = max(0, invulnTimer - dt)
 
         fireTimer = min(fireCooldown, fireTimer + dt)
         tryAutoFire()
@@ -1143,8 +1231,10 @@ extension GameScene: SCNSceneRendererDelegate {
     private func updateBossEncounter(dt: TimeInterval) {
         advanceShip(dt: dt)
         applyTouchInput()
+        applyRollDrift(dt: dt)
         updateEnginePower(dt: dt, extraBoost: 0.08)
         updateCamera(dt: dt)
+        invulnTimer = max(0, invulnTimer - dt)
 
         fireTimer = min(fireCooldown, fireTimer + dt)
         tryAutoFire()
@@ -1198,6 +1288,10 @@ extension GameScene: SCNSceneRendererDelegate {
 extension GameScene: SCNPhysicsContactDelegate {
 
     func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
+        // No combat consequences outside combat — keeps the ship safe
+        // during mission intro/complete fly-bys and after game over.
+        guard state.phase == .playing || state.phase == .bossEncounter else { return }
+
         let a = contact.nodeA
         let b = contact.nodeB
 

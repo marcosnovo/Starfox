@@ -2,32 +2,29 @@
 //  GameState.swift
 //  StarFox
 //
+//  Plain gameplay model, owned and mutated by the render thread.
+//  The HUD never observes this directly — GameScene pushes throttled
+//  HUDSnapshot values to HUDModel on the main thread.
+//
 
 import Foundation
-import Combine
 
 enum GamePhase {
     case menu, levelIntro, playing, bossEncounter, levelComplete, paused, gameOver
 }
 
-struct RadioMessage: Equatable {
-    let callsign: String
-    let text: String
-}
-
-class GameState: ObservableObject {
-    @Published var score: Int = 0
-    @Published var hiScore: Int = 0
-    @Published var shield: Int = 6
-    @Published var lives: Int = 3
-    @Published var level: Int = 1
-    @Published var phase: GamePhase = .menu
-    @Published var rings: Int = 0
-    @Published var bombs: Int = 2
-    @Published var hits: Int = 0
-    @Published var boostGauge: Double = 1.0
-    @Published var twinLaserActive: Bool = false
-    @Published var radio: RadioMessage?
+class GameState {
+    var score: Int = 0
+    private(set) var hiScore: Int = 0
+    var shield: Int = 6
+    var lives: Int = 3
+    var level: Int = 1
+    var phase: GamePhase = .menu
+    var rings: Int = 0
+    var bombs: Int = 2
+    var hits: Int = 0
+    var boostGauge: Double = 1.0
+    var twinLaserActive: Bool = false
 
     let maxShield: Int = 6
     let maxBombs: Int = 3
@@ -45,7 +42,6 @@ class GameState: ObservableObject {
     /// Cadence of the wave director while in the playing phase.
     var eventInterval: TimeInterval { max(1.2, 2.4 - Double(level - 1) * 0.18) }
 
-    private var radioClearItem: DispatchWorkItem?
     private static let hiScoreKey = "starfox.hiScore"
 
     init() {
@@ -86,14 +82,20 @@ class GameState: ObservableObject {
         phase = .gameOver
     }
 
-    func postRadio(_ callsign: String, _ text: String, duration: TimeInterval = 3.4) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.radioClearItem?.cancel()
-            self.radio = RadioMessage(callsign: callsign, text: text)
-            let clear = DispatchWorkItem { [weak self] in self?.radio = nil }
-            self.radioClearItem = clear
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: clear)
-        }
+    func makeHUDSnapshot() -> HUDSnapshot {
+        HUDSnapshot(
+            phase: phase,
+            score: score,
+            hiScore: hiScore,
+            shield: shield,
+            lives: lives,
+            level: level,
+            bombs: bombs,
+            hits: hits,
+            // Quantized so the throttled HUD doesn't churn on tiny changes.
+            boost: (boostGauge * 20).rounded() / 20,
+            twinLaser: twinLaserActive,
+            sectorName: sectorName
+        )
     }
 }

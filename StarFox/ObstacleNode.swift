@@ -70,6 +70,13 @@ class ObstacleNode: SCNNode {
     private static let mintAccent = UIColor.cMintMetal
     private static let goldRing = UIColor(red: 0.85, green: 0.62, blue: 0.28, alpha: 1)
 
+    // Shared materials — every silhouette/glow in the corridor reuses these
+    // instead of allocating per spawn.
+    private static let sharedSilhouette = silhouetteMaterial()
+    private static let sharedOrangeGlow = glowMaterial(orangeAccent, emission: orangeAccent.withAlphaComponent(0.5))
+    private static let sharedMintGlow = glowMaterial(mintAccent, emission: mintAccent.withAlphaComponent(0.6))
+    private static let sharedGoldGlow = glowMaterial(goldRing, emission: goldRing.withAlphaComponent(0.5))
+
     // MARK: - Factory
 
     static func create(kind: ObstacleKind, at position: SCNVector3) -> ObstacleNode {
@@ -83,11 +90,22 @@ class ObstacleNode: SCNNode {
         case .gate:          buildGate(node)
         case .enemyFighter:  buildEnemyFighter(node)
         case .ring:          buildRing(node)
-        case .powerShield:   buildPowerUp(node, color: mintAccent, symbolSides: 3)
-        case .powerTwin:     buildPowerUp(node, color: orangeAccent, symbolSides: 4)
-        case .powerBomb:     buildPowerUp(node, color: goldRing, symbolSides: 5)
+        case .powerShield:   buildPowerUp(node, material: sharedMintGlow, symbolSides: 3)
+        case .powerTwin:     buildPowerUp(node, material: sharedOrangeGlow, symbolSides: 4)
+        case .powerBomb:     buildPowerUp(node, material: sharedGoldGlow, symbolSides: 5)
         }
         return node
+    }
+
+    /// Quick scale pulse for non-lethal laser hits — readable feedback
+    /// that works with shared materials (no per-node material flash).
+    func hitPop() {
+        removeAction(forKey: "hitPop")
+        let pop = SCNAction.sequence([
+            SCNAction.scale(to: 1.18, duration: 0.06),
+            SCNAction.scale(to: 1.0, duration: 0.10)
+        ])
+        runAction(pop, forKey: "hitPop")
     }
 
     private static func attachBody(
@@ -112,13 +130,13 @@ class ObstacleNode: SCNNode {
         let radius = CGFloat.random(in: 1.0...1.9)
         let geom = SCNSphere(radius: radius)
         geom.segmentCount = 5
-        geom.materials = [silhouetteMaterial()]
+        geom.materials = [sharedSilhouette]
         node.geometry = geom
 
         // Orange ember veins.
         for _ in 0..<3 {
             let emberGeom = SCNBox(width: radius * 0.5, height: 0.08, length: 0.08, chamferRadius: 0)
-            emberGeom.materials = [glowMaterial(orangeAccent, emission: orangeAccent.withAlphaComponent(0.35))]
+            emberGeom.materials = [sharedOrangeGlow]
             let ember = SCNNode(geometry: emberGeom)
             ember.position = SCNVector3(
                 Float.random(in: -0.4...0.4) * Float(radius),
@@ -143,12 +161,12 @@ class ObstacleNode: SCNNode {
         node.health = 3
         let height = CGFloat.random(in: 7...11)
         let geom = SCNBox(width: 1.7, height: height, length: 1.7, chamferRadius: 0.05)
-        geom.materials = [silhouetteMaterial()]
+        geom.materials = [sharedSilhouette]
         node.geometry = geom
 
         // Beacon light on top.
         let beaconGeom = SCNSphere(radius: 0.18)
-        beaconGeom.materials = [glowMaterial(orangeAccent, emission: orangeAccent.withAlphaComponent(0.6))]
+        beaconGeom.materials = [sharedOrangeGlow]
         let beacon = SCNNode(geometry: beaconGeom)
         beacon.position = SCNVector3(0, Float(height) / 2 + 0.2, 0)
         node.addChildNode(beacon)
@@ -168,7 +186,7 @@ class ObstacleNode: SCNNode {
     private static func buildGate(_ node: ObstacleNode) {
         node.health = 999
         node.name = "gateRoot"
-        let frameMat = silhouetteMaterial()
+        let frameMat = sharedSilhouette
 
         let innerHalfWidth: CGFloat = 3.1
         let innerHeight: CGFloat = 5.2
@@ -193,7 +211,7 @@ class ObstacleNode: SCNNode {
         // Mint marker lights along the inside edge.
         for side: CGFloat in [-1, 1] {
             let lampGeom = SCNBox(width: 0.14, height: 1.6, length: 0.14, chamferRadius: 0.02)
-            lampGeom.materials = [glowMaterial(mintAccent, emission: mintAccent.withAlphaComponent(0.6))]
+            lampGeom.materials = [sharedMintGlow]
             let lamp = SCNNode(geometry: lampGeom)
             lamp.position = SCNVector3(Float(side * innerHalfWidth), 0, 0)
             node.addChildNode(lamp)
@@ -212,43 +230,51 @@ class ObstacleNode: SCNNode {
         node.addChildNode(sensor)
     }
 
-    private static func buildEnemyFighter(_ node: ObstacleNode) {
-        node.health = 2
-        let dark = silhouetteMaterial()
+    /// Prototype enemy fighter, cloned per spawn. clone() shares all the
+    /// geometry/materials, so a 5-ship formation costs one node tree copy
+    /// instead of rebuilding four geometries per fighter. The exhaust is an
+    /// emissive sphere, not a light: silhouettes use constant lighting, so
+    /// dynamic lights cost GPU time without changing the picture.
+    private static let enemyFighterPrototype: SCNNode = {
+        let proto = SCNNode()
 
         // Angular dart body.
         let bodyGeom = SCNBox(width: 0.8, height: 0.4, length: 1.5, chamferRadius: 0.02)
-        bodyGeom.materials = [dark]
+        bodyGeom.materials = [sharedSilhouette]
         let body = SCNNode(geometry: bodyGeom)
-        node.addChildNode(body)
+        proto.addChildNode(body)
 
         // Swept wings.
         let wingGeom = SCNBox(width: 3.4, height: 0.09, length: 0.9, chamferRadius: 0)
-        wingGeom.materials = [dark]
+        wingGeom.materials = [sharedSilhouette]
         let wings = SCNNode(geometry: wingGeom)
         wings.position = SCNVector3(0, 0, 0.25)
-        wings.eulerAngles.y = 0.0
-        node.addChildNode(wings)
+        proto.addChildNode(wings)
 
         // Orange nose spike facing the player (-Z, they fly toward us).
         let noseGeom = SCNCone(topRadius: 0, bottomRadius: 0.22, height: 0.8)
-        noseGeom.materials = [glowMaterial(orangeAccent, emission: orangeAccent.withAlphaComponent(0.55))]
+        noseGeom.materials = [sharedOrangeGlow]
         let nose = SCNNode(geometry: noseGeom)
         nose.eulerAngles.x = -.pi / 2
         nose.position = SCNVector3(0, 0, -0.95)
-        node.addChildNode(nose)
+        proto.addChildNode(nose)
 
-        // Engine glow at the back.
-        let engineLight = SCNLight()
-        engineLight.type = .omni
-        engineLight.color = orangeAccent
-        engineLight.attenuationStartDistance = 0
-        engineLight.attenuationEndDistance = 3
-        engineLight.intensity = 200
-        let engineGlowNode = SCNNode()
-        engineGlowNode.light = engineLight
-        engineGlowNode.position = SCNVector3(0, 0, 0.9)
-        node.addChildNode(engineGlowNode)
+        // Emissive exhaust at the back.
+        let exhaustGeom = SCNSphere(radius: 0.16)
+        exhaustGeom.materials = [sharedOrangeGlow]
+        let exhaust = SCNNode(geometry: exhaustGeom)
+        exhaust.position = SCNVector3(0, 0, 0.9)
+        proto.addChildNode(exhaust)
+
+        return proto
+    }()
+
+    private static func buildEnemyFighter(_ node: ObstacleNode) {
+        node.health = 2
+        let copy = enemyFighterPrototype.clone()
+        for child in copy.childNodes {
+            node.addChildNode(child)
+        }
 
         attachBody(
             node,
@@ -261,7 +287,7 @@ class ObstacleNode: SCNNode {
     private static func buildRing(_ node: ObstacleNode) {
         node.health = 999
         let geom = SCNTorus(ringRadius: 1.9, pipeRadius: 0.22)
-        geom.materials = [glowMaterial(goldRing, emission: goldRing.withAlphaComponent(0.5))]
+        geom.materials = [sharedGoldGlow]
         node.geometry = geom
         node.eulerAngles.x = .pi / 2
 
@@ -278,10 +304,10 @@ class ObstacleNode: SCNNode {
         )
     }
 
-    private static func buildPowerUp(_ node: ObstacleNode, color: UIColor, symbolSides: Int) {
+    private static func buildPowerUp(_ node: ObstacleNode, material: SCNMaterial, symbolSides: Int) {
         node.health = 999
         let geom = SCNBox(width: 0.95, height: 0.95, length: 0.95, chamferRadius: 0.14)
-        geom.materials = [glowMaterial(color, emission: color.withAlphaComponent(0.45))]
+        geom.materials = [material]
         node.geometry = geom
         node.runAction(SCNAction.repeatForever(
             SCNAction.rotate(by: .pi * 2, around: SCNVector3(0.4, 1, 0.3), duration: 1.6)
@@ -290,7 +316,7 @@ class ObstacleNode: SCNNode {
         for i in 0..<symbolSides {
             let angle = Float(i) * (.pi * 2) / Float(symbolSides)
             let sparkGeom = SCNSphere(radius: 0.10)
-            sparkGeom.materials = [glowMaterial(color, emission: color.withAlphaComponent(0.35))]
+            sparkGeom.materials = [material]
             let spark = SCNNode(geometry: sparkGeom)
             spark.position = SCNVector3(cos(angle) * 1.05, sin(angle) * 1.05, 0)
             node.addChildNode(spark)

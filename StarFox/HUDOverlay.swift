@@ -43,7 +43,7 @@ private struct ShipGlyph: Shape {
 }
 
 struct HUDOverlay: View {
-    @ObservedObject var state: GameState
+    @ObservedObject var state: HUDModel
 
     private var inCombat: Bool {
         state.phase == .playing || state.phase == .bossEncounter
@@ -82,7 +82,7 @@ struct HUDOverlay: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     HUDLabel(text: "SHIELD")
-                    if state.twinLaserActive {
+                    if state.twinLaser {
                         HUDLabel(text: "TWIN", size: 10, color: .hudOrange)
                     }
                 }
@@ -158,10 +158,12 @@ struct HUDOverlay: View {
                     .fill(Color.hudPanel)
                     .frame(width: 110, height: 7)
                 Rectangle()
-                    .fill(state.boostGauge < 0.25 ? Color.hudOrange : Color.hudMint)
-                    .frame(width: max(2, 110 * CGFloat(state.boostGauge)), height: 7)
+                    .fill(state.boost < 0.25 ? Color.hudOrange : Color.hudMint)
+                    .frame(width: max(2, 110 * CGFloat(state.boost)), height: 7)
             }
             .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
+            // Smooth the ~10 Hz snapshot steps into a continuous sweep.
+            .animation(.linear(duration: 0.12), value: state.boost)
         }
     }
 

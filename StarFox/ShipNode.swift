@@ -25,6 +25,7 @@ class ShipNode: SCNNode {
 
     private(set) var airframe = SCNNode()
     private(set) var isRolling = false
+    private(set) var rollDirection: Float = 0
 
     private var engineGlowLight: SCNLight?
     private var engineCoreMaterials: [SCNMaterial] = []
@@ -425,6 +426,7 @@ class ShipNode: SCNNode {
     func barrelRoll(direction: Float) {
         guard !isRolling else { return }
         isRolling = true
+        rollDirection = direction
         let spin = SCNAction.rotateBy(
             x: 0, y: 0,
             z: CGFloat(direction) * .pi * 2,
@@ -442,10 +444,28 @@ class ShipNode: SCNNode {
     /// Cancels any roll in flight and levels the airframe (scene resets).
     func resetAttitude() {
         airframe.removeAction(forKey: "barrelRoll")
+        airframe.removeAction(forKey: "invulnBlink")
+        airframe.opacity = 1.0
         isRolling = false
+        rollDirection = 0
         currentBank = 0
         currentPitch = 0
         airframe.eulerAngles = SCNVector3Zero
+    }
+
+    /// Post-damage invulnerability blink, SNES style.
+    func flashInvulnerable(duration: TimeInterval) {
+        airframe.removeAction(forKey: "invulnBlink")
+        let blink = SCNAction.sequence([
+            SCNAction.fadeOpacity(to: 0.25, duration: 0.08),
+            SCNAction.fadeOpacity(to: 1.0, duration: 0.08)
+        ])
+        let count = max(1, Int(duration / 0.16))
+        let settle = SCNAction.fadeOpacity(to: 1.0, duration: 0.05)
+        airframe.runAction(
+            SCNAction.sequence([SCNAction.repeat(blink, count: count), settle]),
+            forKey: "invulnBlink"
+        )
     }
 }
 

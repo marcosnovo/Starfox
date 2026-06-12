@@ -31,6 +31,12 @@ class GameViewController: UIViewController {
 
     // Touch tracking
     private var lastTouchPoint: CGPoint = .zero
+    private var lastCombatTapTime: TimeInterval = 0
+
+    // Phase mirrored from the scene on the main thread, so touch handling
+    // never reads render-thread state directly.
+    private var currentPhase: GamePhase = .menu
+    private var phaseChangedAt: TimeInterval = CACurrentMediaTime()
 
     // MARK: - Lifecycle
 
@@ -62,7 +68,7 @@ class GameViewController: UIViewController {
     }
 
     private func setupHUD() {
-        let hud = HUDOverlay(state: gameScene.state)
+        let hud = HUDOverlay(state: gameScene.hud)
         let hosting = UIHostingController(rootView: hud)
         hosting.view.backgroundColor = .clear
         hosting.view.frame = view.bounds
@@ -173,9 +179,12 @@ class GameViewController: UIViewController {
 
     private func bindSceneCallbacks() {
         gameScene.onPhaseChanged = { [weak self] phase in
-            self?.applyControls(for: phase)
+            guard let self else { return }
+            self.currentPhase = phase
+            self.phaseChangedAt = CACurrentMediaTime()
+            self.applyControls(for: phase)
         }
-        applyControls(for: gameScene.state.phase)
+        applyControls(for: currentPhase)
     }
 
     private func applyControls(for phase: GamePhase) {
@@ -221,12 +230,16 @@ class GameViewController: UIViewController {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
 
-        switch gameScene.state.phase {
+        switch currentPhase {
         case .menu:
             gameScene.requestStartNewGame()
             return
         case .gameOver:
-            gameScene.requestRestartGame()
+            // Small grace period so mashing FIRE while dying doesn't skip
+            // the game-over screen instantly.
+            if CACurrentMediaTime() - phaseChangedAt > 0.8 {
+                gameScene.requestRestartGame()
+            }
             return
         case .paused:
             gameScene.requestResumeGame()
@@ -237,6 +250,15 @@ class GameViewController: UIViewController {
             break
         }
 
+        // Quick double tap anywhere = barrel roll (classic).
+        let now = CACurrentMediaTime()
+        if now - lastCombatTapTime < 0.28 {
+            lastCombatTapTime = 0
+            gameScene.requestBarrelRoll()
+        } else {
+            lastCombatTapTime = now
+        }
+
         let loc = touch.location(in: view)
         lastTouchPoint = loc
         gameScene.setDragging(true)
@@ -244,7 +266,7 @@ class GameViewController: UIViewController {
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first,
-              gameScene.state.phase == .playing || gameScene.state.phase == .bossEncounter
+              currentPhase == .playing || currentPhase == .bossEncounter
         else { return }
 
         let loc = touch.location(in: view)
