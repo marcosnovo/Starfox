@@ -2,6 +2,11 @@
 //  ShipNode.swift
 //  StarFox
 //
+//  Arwing-style fighter built from charcoal silhouettes with safety-orange
+//  engine glow and mint accents, in keeping with the project's comic style.
+//  Forward is +Z. All visible geometry hangs off `airframe` so the barrel
+//  roll and bank/pitch tilt never disturb the physics body on the root.
+//
 
 import SceneKit
 import UIKit
@@ -17,13 +22,35 @@ struct PhysicsCategory {
 }
 
 class ShipNode: SCNNode {
+
+    private(set) var airframe = SCNNode()
+    private(set) var isRolling = false
+    private(set) var rollDirection: Float = 0
+
+    // Wing damage (SNES style): -1 left broken, +1 right broken, 0 intact.
+    private(set) var brokenWingSide: Float = 0
+    var hasBrokenWing: Bool { brokenWingSide != 0 }
+    private var leftWingParts: [SCNNode] = []
+    private var rightWingParts: [SCNNode] = []
+    private var wingSparkEmitter: SCNNode?
+
     private var engineGlowLight: SCNLight?
     private var engineCoreMaterials: [SCNMaterial] = []
     private var engineJetSystems: [SCNParticleSystem] = []
     private var engineTrailSystems: [SCNParticleSystem] = []
-    private static let engineCoreColor = UIColor(red: 1.0, green: 0.9647, blue: 0.8157, alpha: 1.0)   // #FFF6D0
-    private static let engineGlowColor = UIColor(red: 1.0, green: 0.6039, blue: 0.2706, alpha: 1.0)   // #FF9A45
+    private var currentBank: Float = 0
+    private var currentPitch: Float = 0
+
+    private static let engineCoreColor  = UIColor(red: 1.0, green: 0.9647, blue: 0.8157, alpha: 1.0) // #FFF6D0
+    private static let engineGlowColor  = UIColor(red: 1.0, green: 0.6039, blue: 0.2706, alpha: 1.0) // #FF9A45
     private static let engineTrailColor = UIColor(red: 0.9412, green: 0.4157, blue: 0.3020, alpha: 1.0) // #F06A4D
+
+    // Local muzzle positions on the airframe (wing cannons and nose gun).
+    static let leftMuzzleLocal  = SCNVector3(-1.55, -0.18, 1.05)
+    static let rightMuzzleLocal = SCNVector3( 1.55, -0.18, 1.05)
+    static let noseMuzzleLocal  = SCNVector3( 0.0,   0.0,  2.9)
+
+    // MARK: - Materials
 
     private static func silhouetteMaterial() -> SCNMaterial {
         let material = SCNMaterial()
@@ -31,6 +58,15 @@ class ShipNode: SCNNode {
         material.diffuse.contents = UIColor.black
         material.emission.contents = UIColor.black
         material.specular.contents = UIColor.black
+        material.isDoubleSided = true
+        return material
+    }
+
+    private static func mintAccentMaterial() -> SCNMaterial {
+        let material = SCNMaterial()
+        material.lightingModel = .constant
+        material.diffuse.contents = UIColor.cMintMetal
+        material.emission.contents = UIColor.cMintMetal.withAlphaComponent(0.55)
         material.isDoubleSided = true
         return material
     }
@@ -59,10 +95,8 @@ class ShipNode: SCNNode {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             cg.drawRadialGradient(
                 gradient,
-                startCenter: center,
-                startRadius: 1,
-                endCenter: center,
-                endRadius: size.width / 2,
+                startCenter: center, startRadius: 1,
+                endCenter: center, endRadius: size.width / 2,
                 options: []
             )
         }
@@ -84,151 +118,156 @@ class ShipNode: SCNNode {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             cg.drawRadialGradient(
                 gradient,
-                startCenter: center,
-                startRadius: 0.5,
-                endCenter: center,
-                endRadius: size.width / 2,
+                startCenter: center, startRadius: 0.5,
+                endCenter: center, endRadius: size.width / 2,
                 options: []
             )
         }
     }
 
-    private static let baseEuler = SCNVector3(0.03, Float.pi * 0.96, -0.08)
+    // MARK: - Construction
 
     static func create() -> ShipNode {
         let ship = ShipNode()
         ship.name = "ship"
-        ship.scale = SCNVector3(1.35, 1.35, 1.35)
-        ship.eulerAngles = baseEuler
+
+        let frame = ship.airframe
+        frame.name = "airframe"
+        frame.scale = SCNVector3(1.15, 1.15, 1.15)
+        ship.addChildNode(frame)
 
         let black = silhouetteMaterial()
+        let mint = mintAccentMaterial()
 
-        // Fuselage — long tapered body
+        // Fuselage — elongated hexagon (top view), extruded for thickness.
+        // Drawn in XY with +Y as forward, then rotated so +Y maps to +Z.
         let fuselagePath = UIBezierPath()
-        fuselagePath.move(to: CGPoint(x: 0, y: -2.6))
-        fuselagePath.addLine(to: CGPoint(x: 0.20, y: -1.4))
-        fuselagePath.addLine(to: CGPoint(x: 0.22, y: 0.0))
-        fuselagePath.addLine(to: CGPoint(x: 0.18, y: 1.0))
-        fuselagePath.addLine(to: CGPoint(x: 0, y: 1.1))
-        fuselagePath.addLine(to: CGPoint(x: -0.18, y: 1.0))
-        fuselagePath.addLine(to: CGPoint(x: -0.22, y: 0.0))
-        fuselagePath.addLine(to: CGPoint(x: -0.20, y: -1.4))
+        fuselagePath.move(to: CGPoint(x: 0, y: 2.45))
+        fuselagePath.addLine(to: CGPoint(x: 0.30, y: 0.85))
+        fuselagePath.addLine(to: CGPoint(x: 0.38, y: -0.25))
+        fuselagePath.addLine(to: CGPoint(x: 0.22, y: -1.30))
+        fuselagePath.addLine(to: CGPoint(x: -0.22, y: -1.30))
+        fuselagePath.addLine(to: CGPoint(x: -0.38, y: -0.25))
+        fuselagePath.addLine(to: CGPoint(x: -0.30, y: 0.85))
         fuselagePath.close()
-        let fuselageGeom = SCNShape(path: fuselagePath, extrusionDepth: 0.12)
+        let fuselageGeom = SCNShape(path: fuselagePath, extrusionDepth: 0.26)
         fuselageGeom.materials = [black]
         let fuselage = SCNNode(geometry: fuselageGeom)
-        fuselage.eulerAngles.x = -.pi / 2
-        fuselage.position = SCNVector3(0, 0.02, -0.12)
-        ship.addChildNode(fuselage)
+        fuselage.eulerAngles.x = .pi / 2
+        fuselage.position = SCNVector3(0, 0, 0)
+        frame.addChildNode(fuselage)
 
-        // Nose — sharp pointed cone
-        let noseGeom = SCNCone(topRadius: 0.003, bottomRadius: 0.10, height: 1.20)
+        // Nose cone — long needle ahead of the fuselage.
+        let noseGeom = SCNCone(topRadius: 0.005, bottomRadius: 0.13, height: 1.1)
         noseGeom.materials = [black]
         let nose = SCNNode(geometry: noseGeom)
-        nose.position = SCNVector3(0, 0.01, -2.20)
         nose.eulerAngles.x = .pi / 2
-        ship.addChildNode(nose)
+        nose.position = SCNVector3(0, 0.0, 2.85)
+        frame.addChildNode(nose)
 
-        // Left wing — swept-back delta
-        let leftWingPath = UIBezierPath()
-        leftWingPath.move(to: CGPoint(x: 0, y: 0.3))
-        leftWingPath.addLine(to: CGPoint(x: -2.30, y: -0.10))
-        leftWingPath.addLine(to: CGPoint(x: -1.80, y: -0.45))
-        leftWingPath.addLine(to: CGPoint(x: 0, y: -0.40))
-        leftWingPath.close()
-        let leftWingGeom = SCNShape(path: leftWingPath, extrusionDepth: 0.05)
-        leftWingGeom.materials = [black]
-        let leftWing = SCNNode(geometry: leftWingGeom)
-        leftWing.eulerAngles.x = -.pi / 2
-        leftWing.position = SCNVector3(-0.10, -0.02, 0.10)
-        ship.addChildNode(leftWing)
+        // Canopy — small raised wedge behind the nose.
+        let canopyGeom = SCNPyramid(width: 0.34, height: 0.24, length: 0.85)
+        canopyGeom.materials = [black]
+        let canopy = SCNNode(geometry: canopyGeom)
+        canopy.position = SCNVector3(0, 0.13, 0.85)
+        frame.addChildNode(canopy)
 
-        // Right wing — swept-back delta (mirrored)
-        let rightWingPath = UIBezierPath()
-        rightWingPath.move(to: CGPoint(x: 0, y: 0.3))
-        rightWingPath.addLine(to: CGPoint(x: 2.30, y: -0.10))
-        rightWingPath.addLine(to: CGPoint(x: 1.80, y: -0.45))
-        rightWingPath.addLine(to: CGPoint(x: 0, y: -0.40))
-        rightWingPath.close()
-        let rightWingGeom = SCNShape(path: rightWingPath, extrusionDepth: 0.05)
-        rightWingGeom.materials = [black]
-        let rightWing = SCNNode(geometry: rightWingGeom)
-        rightWing.eulerAngles.x = -.pi / 2
-        rightWing.position = SCNVector3(0.10, -0.02, 0.10)
-        ship.addChildNode(rightWing)
+        // Canopy mint strip — tiny visor accent.
+        let visorGeom = SCNBox(width: 0.20, height: 0.05, length: 0.30, chamferRadius: 0.01)
+        visorGeom.materials = [mint]
+        let visor = SCNNode(geometry: visorGeom)
+        visor.position = SCNVector3(0, 0.20, 1.05)
+        frame.addChildNode(visor)
 
-        // Left wing tip accent — sharp trailing edge
-        let leftTipGeom = SCNBox(width: 0.40, height: 0.04, length: 0.18, chamferRadius: 0)
-        leftTipGeom.materials = [black]
-        let leftTip = SCNNode(geometry: leftTipGeom)
-        leftTip.position = SCNVector3(-2.10, -0.02, 0.0)
-        leftTip.eulerAngles.y = 0.25
-        ship.addChildNode(leftTip)
+        // Wings — forward-swept deltas with downward dihedral (Arwing read).
+        // Drawn in XY (top view, +Y forward), rotated flat, then banked.
+        for side: Float in [-1, 1] {
+            let wingPath = UIBezierPath()
+            wingPath.move(to: CGPoint(x: 0, y: 0.55))
+            wingPath.addLine(to: CGPoint(x: CGFloat(side) * 2.25, y: 1.05))
+            wingPath.addLine(to: CGPoint(x: CGFloat(side) * 2.45, y: 0.25))
+            wingPath.addLine(to: CGPoint(x: 0, y: -0.70))
+            wingPath.close()
+            let wingGeom = SCNShape(path: wingPath, extrusionDepth: 0.07)
+            wingGeom.materials = [black]
+            let wing = SCNNode(geometry: wingGeom)
+            wing.eulerAngles = SCNVector3(Float.pi / 2, 0, side * 0.20)
+            wing.position = SCNVector3(side * 0.18, -0.04, -0.10)
+            frame.addChildNode(wing)
 
-        // Right wing tip accent
-        let rightTipGeom = SCNBox(width: 0.40, height: 0.04, length: 0.18, chamferRadius: 0)
-        rightTipGeom.materials = [black]
-        let rightTip = SCNNode(geometry: rightTipGeom)
-        rightTip.position = SCNVector3(2.10, -0.02, 0.0)
-        rightTip.eulerAngles.y = -0.25
-        ship.addChildNode(rightTip)
+            // Wingtip fin (G-diffuser style vertical blade).
+            let finGeom = SCNBox(width: 0.06, height: 0.46, length: 0.85, chamferRadius: 0.01)
+            finGeom.materials = [black]
+            let fin = SCNNode(geometry: finGeom)
+            fin.position = SCNVector3(side * 2.45, -0.50, 0.55)
+            fin.eulerAngles.z = side * 0.12
+            frame.addChildNode(fin)
 
-        // Rear engine housings
-        for x: Float in [-0.34, 0.34] {
-            let housingGeom = SCNBox(width: 0.30, height: 0.14, length: 0.80, chamferRadius: 0.02)
+            // Mint leading-edge strip on each wing.
+            let stripGeom = SCNBox(width: 1.7, height: 0.035, length: 0.09, chamferRadius: 0.01)
+            stripGeom.materials = [mint]
+            let strip = SCNNode(geometry: stripGeom)
+            strip.position = SCNVector3(side * 1.15, -0.22, 0.62)
+            strip.eulerAngles = SCNVector3(0, side * -0.21, side * -0.20)
+            frame.addChildNode(strip)
+
+            // Wing cannon nub at the tip.
+            let cannonGeom = SCNCylinder(radius: 0.045, height: 0.55)
+            cannonGeom.materials = [black]
+            let cannon = SCNNode(geometry: cannonGeom)
+            cannon.eulerAngles.x = .pi / 2
+            cannon.position = SCNVector3(side * 1.55, -0.18, 0.95)
+            frame.addChildNode(cannon)
+
+            let parts = [wing, fin, strip, cannon]
+            if side < 0 {
+                ship.leftWingParts = parts
+            } else {
+                ship.rightWingParts = parts
+            }
+        }
+
+        // Twin tail fins — angled outward at the rear.
+        for side: Float in [-1, 1] {
+            let finPath = UIBezierPath()
+            finPath.move(to: CGPoint(x: 0, y: 0))
+            finPath.addLine(to: CGPoint(x: CGFloat(side) * 0.10, y: 0.55))
+            finPath.addLine(to: CGPoint(x: CGFloat(side) * -0.20, y: 0.42))
+            finPath.addLine(to: CGPoint(x: CGFloat(side) * -0.24, y: 0))
+            finPath.close()
+            let finGeom = SCNShape(path: finPath, extrusionDepth: 0.05)
+            finGeom.materials = [black]
+            let fin = SCNNode(geometry: finGeom)
+            fin.position = SCNVector3(side * 0.34, 0.12, -0.85)
+            fin.eulerAngles = SCNVector3(0, .pi / 2, side * 0.24)
+            frame.addChildNode(fin)
+        }
+
+        // Rear engine housings + nozzles.
+        for x: Float in [-0.32, 0.32] {
+            let housingGeom = SCNBox(width: 0.30, height: 0.16, length: 0.85, chamferRadius: 0.02)
             housingGeom.materials = [black]
             let housing = SCNNode(geometry: housingGeom)
-            housing.position = SCNVector3(x, 0.05, 0.65)
-            ship.addChildNode(housing)
-        }
+            housing.position = SCNVector3(x, -0.02, -0.95)
+            frame.addChildNode(housing)
 
-        // Engine nozzles
-        for x: Float in [-0.34, 0.34] {
-            let nozzleGeom = SCNCone(topRadius: 0.08, bottomRadius: 0.12, height: 0.22)
+            let nozzleGeom = SCNCone(topRadius: 0.12, bottomRadius: 0.08, height: 0.22)
             nozzleGeom.materials = [black]
             let nozzle = SCNNode(geometry: nozzleGeom)
-            nozzle.position = SCNVector3(x, 0.05, 1.06)
-            nozzle.eulerAngles.x = -.pi / 2
-            ship.addChildNode(nozzle)
+            nozzle.eulerAngles.x = .pi / 2
+            nozzle.position = SCNVector3(x, -0.02, -1.42)
+            frame.addChildNode(nozzle)
         }
 
-        // Vertical stabilizers — angled outward
-        let leftFinPath = UIBezierPath()
-        leftFinPath.move(to: CGPoint(x: 0, y: 0))
-        leftFinPath.addLine(to: CGPoint(x: -0.08, y: 0.50))
-        leftFinPath.addLine(to: CGPoint(x: 0.18, y: 0.38))
-        leftFinPath.addLine(to: CGPoint(x: 0.22, y: 0))
-        leftFinPath.close()
-        let leftFinGeom = SCNShape(path: leftFinPath, extrusionDepth: 0.04)
-        leftFinGeom.materials = [black]
-        let leftFin = SCNNode(geometry: leftFinGeom)
-        leftFin.position = SCNVector3(-0.38, 0.12, 0.52)
-        leftFin.eulerAngles.z = 0.18
-        ship.addChildNode(leftFin)
-
-        let rightFinPath = UIBezierPath()
-        rightFinPath.move(to: CGPoint(x: 0, y: 0))
-        rightFinPath.addLine(to: CGPoint(x: 0.08, y: 0.50))
-        rightFinPath.addLine(to: CGPoint(x: -0.18, y: 0.38))
-        rightFinPath.addLine(to: CGPoint(x: -0.22, y: 0))
-        rightFinPath.close()
-        let rightFinGeom = SCNShape(path: rightFinPath, extrusionDepth: 0.04)
-        rightFinGeom.materials = [black]
-        let rightFin = SCNNode(geometry: rightFinGeom)
-        rightFin.position = SCNVector3(0.38, 0.12, 0.52)
-        rightFin.eulerAngles.z = -0.18
-        ship.addChildNode(rightFin)
-
-        // Rim light shell for visibility against dark backgrounds
+        // Faint rim shell so the silhouette reads against dark skies.
         let rimPath = UIBezierPath()
-        rimPath.move(to: CGPoint(x: 0, y: -2.5))
-        rimPath.addLine(to: CGPoint(x: 0.24, y: -1.2))
-        rimPath.addLine(to: CGPoint(x: 0.24, y: 1.0))
-        rimPath.addLine(to: CGPoint(x: 0, y: 1.1))
-        rimPath.addLine(to: CGPoint(x: -0.24, y: 1.0))
-        rimPath.addLine(to: CGPoint(x: -0.24, y: -1.2))
+        rimPath.move(to: CGPoint(x: 0, y: 2.40))
+        rimPath.addLine(to: CGPoint(x: 0.42, y: -0.25))
+        rimPath.addLine(to: CGPoint(x: 0.26, y: -1.35))
+        rimPath.addLine(to: CGPoint(x: -0.26, y: -1.35))
+        rimPath.addLine(to: CGPoint(x: -0.42, y: -0.25))
         rimPath.close()
-        let rimGeom = SCNShape(path: rimPath, extrusionDepth: 0.14)
+        let rimGeom = SCNShape(path: rimPath, extrusionDepth: 0.30)
         let rimMaterial = SCNMaterial()
         rimMaterial.lightingModel = .constant
         rimMaterial.diffuse.contents = UIColor(red: 0.05, green: 0.05, blue: 0.05, alpha: 1)
@@ -237,19 +276,20 @@ class ShipNode: SCNNode {
         rimMaterial.isDoubleSided = true
         rimGeom.materials = [rimMaterial]
         let rim = SCNNode(geometry: rimGeom)
-        rim.eulerAngles.x = -.pi / 2
-        rim.position = SCNVector3(0, 0.02, -0.12)
-        ship.addChildNode(rim)
+        rim.eulerAngles.x = .pi / 2
+        rim.position = SCNVector3(0, 0, 0)
+        frame.addChildNode(rim)
 
-        let engineCoreGeom = SCNSphere(radius: 0.08)
+        // Engine cores (glowing spheres in the nozzles).
+        let engineCoreGeom = SCNSphere(radius: 0.09)
         engineCoreGeom.materials = [engineCoreMaterial()]
-        for x in [-0.34, 0.34] {
-            let core = SCNNode(geometry: engineCoreGeom)
-            core.position = SCNVector3(Float(x), 0.05, 1.08)
+        for x: Float in [-0.32, 0.32] {
+            let core = SCNNode(geometry: engineCoreGeom.copy() as! SCNGeometry)
+            core.position = SCNVector3(x, -0.02, -1.45)
             if let material = core.geometry?.firstMaterial {
                 ship.engineCoreMaterials.append(material)
             }
-            ship.addChildNode(core)
+            frame.addChildNode(core)
         }
 
         let glowLight = SCNLight()
@@ -260,10 +300,11 @@ class ShipNode: SCNNode {
         glowLight.intensity = 1050
         let glowNode = SCNNode()
         glowNode.light = glowLight
-        glowNode.position = SCNVector3(0, 0.06, 1.10)
+        glowNode.position = SCNVector3(0, 0.02, -1.50)
         ship.engineGlowLight = glowLight
-        ship.addChildNode(glowNode)
+        frame.addChildNode(glowNode)
 
+        // Engine exhaust particles, emitting backwards (-Z).
         let trailImage = softTrailImage()
         let jetImage = jetCoreImage()
 
@@ -277,7 +318,7 @@ class ShipNode: SCNNode {
         trailColorAnim.duration = 1.0
         let trailColorController = SCNParticlePropertyController(animation: trailColorAnim)
 
-        for x in [-0.34, 0.34] {
+        for x: Float in [-0.32, 0.32] {
             let jet = SCNParticleSystem()
             jet.birthRate = 150
             jet.particleLifeSpan = 0.11
@@ -287,10 +328,10 @@ class ShipNode: SCNNode {
             jet.particleColor = engineCoreColor.withAlphaComponent(0.95)
             jet.particleImage = jetImage
             jet.blendMode = .additive
-            jet.emittingDirection = SCNVector3(0, 0, 1)
+            jet.emittingDirection = SCNVector3(0, 0, -1)
             jet.particleVelocity = 14
             jet.particleVelocityVariation = 2.0
-            jet.acceleration = SCNVector3(0, -0.06, 3.0)
+            jet.acceleration = SCNVector3(0, -0.06, -3.0)
             jet.spreadingAngle = 5
             jet.stretchFactor = 5.5
             jet.fresnelExponent = 0
@@ -306,10 +347,10 @@ class ShipNode: SCNNode {
             trail.particleColor = engineGlowColor.withAlphaComponent(0.52)
             trail.particleImage = trailImage
             trail.blendMode = .alpha
-            trail.emittingDirection = SCNVector3(0, 0, 1)
+            trail.emittingDirection = SCNVector3(0, 0, -1)
             trail.particleVelocity = 6.0
             trail.particleVelocityVariation = 1.0
-            trail.acceleration = SCNVector3(0, -0.04, 0.6)
+            trail.acceleration = SCNVector3(0, -0.04, -0.6)
             trail.spreadingAngle = 3
             trail.stretchFactor = 4.2
             trail.fresnelExponent = 0
@@ -318,24 +359,23 @@ class ShipNode: SCNNode {
             trail.propertyControllers = [.color: trailColorController]
 
             let emitter = SCNNode()
-            emitter.position = SCNVector3(Float(x), 0.05, 1.10)
-            emitter.eulerAngles.y = .pi
+            emitter.position = SCNVector3(x, -0.02, -1.50)
             emitter.addParticleSystem(jet)
             emitter.addParticleSystem(trail)
             ship.engineJetSystems.append(jet)
             ship.engineTrailSystems.append(trail)
-            ship.addChildNode(emitter)
+            frame.addChildNode(emitter)
         }
 
         ship.setEnginePower(0.65)
 
-        for child in ship.childNodes where child.geometry != nil {
+        for child in frame.childNodes where child.geometry != nil {
             child.renderingOrder = 30
         }
-        ship.renderingOrder = 30
+        frame.renderingOrder = 30
 
         let shape = SCNPhysicsShape(
-            geometry: SCNBox(width: 2.25, height: 0.64, length: 2.35, chamferRadius: 0),
+            geometry: SCNBox(width: 4.2, height: 0.9, length: 3.6, chamferRadius: 0),
             options: nil
         )
         let physicsBody = SCNPhysicsBody(type: .kinematic, shape: shape)
@@ -346,6 +386,14 @@ class ShipNode: SCNNode {
 
         return ship
     }
+
+    // MARK: - Muzzles
+
+    func muzzleWorldPosition(_ local: SCNVector3) -> SCNVector3 {
+        airframe.convertPosition(local, to: nil)
+    }
+
+    // MARK: - Engine
 
     func setEnginePower(_ power: CGFloat) {
         let p = max(0, min(1, power))
@@ -376,17 +424,102 @@ class ShipNode: SCNNode {
         }
     }
 
+    // MARK: - Flight attitude
+
     func applyTilt(_ dx: Float, dy: Float = 0) {
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0.12
-        let bank = (-dx * 0.3).clamped(to: -0.6...0.6)
-        let pitch = (dy * 0.25).clamped(to: -0.3...0.3)
-        eulerAngles = SCNVector3(
-            Self.baseEuler.x + pitch,
-            Self.baseEuler.y,
-            Self.baseEuler.z + bank
+        guard !isRolling else { return }
+        let targetBank = (-dx * 0.32).clamped(to: -0.75...0.75)
+        let targetPitch = (dy * 0.26).clamped(to: -0.35...0.35)
+        currentBank += (targetBank - currentBank) * 0.18
+        currentPitch += (targetPitch - currentPitch) * 0.18
+        airframe.eulerAngles = SCNVector3(currentPitch, 0, currentBank)
+    }
+
+    /// SNES-style barrel roll: full 360° spin on the longitudinal axis.
+    /// While rolling, incoming fire is deflected (handled by GameScene).
+    func barrelRoll(direction: Float) {
+        guard !isRolling else { return }
+        isRolling = true
+        rollDirection = direction
+        let spin = SCNAction.rotateBy(
+            x: 0, y: 0,
+            z: CGFloat(direction) * .pi * 2,
+            duration: 0.55
         )
-        SCNTransaction.commit()
+        spin.timingMode = .easeInEaseOut
+        let settle = SCNAction.run { [weak self] _ in
+            guard let self else { return }
+            self.airframe.eulerAngles = SCNVector3(self.currentPitch, 0, self.currentBank)
+            self.isRolling = false
+        }
+        airframe.runAction(SCNAction.sequence([spin, settle]), forKey: "barrelRoll")
+    }
+
+    /// Cancels any roll in flight and levels the airframe (scene resets).
+    func resetAttitude() {
+        airframe.removeAction(forKey: "barrelRoll")
+        airframe.removeAction(forKey: "invulnBlink")
+        airframe.opacity = 1.0
+        isRolling = false
+        rollDirection = 0
+        currentBank = 0
+        currentPitch = 0
+        airframe.eulerAngles = SCNVector3Zero
+    }
+
+    // MARK: - Wing damage
+
+    /// Scraping a structure shears off the wing on that side: twin lasers
+    /// go offline and the ship pulls toward the stump until repaired.
+    func breakWing(side: Float) {
+        guard brokenWingSide == 0 else { return }
+        brokenWingSide = side >= 0 ? 1 : -1
+        let parts = brokenWingSide < 0 ? leftWingParts : rightWingParts
+        for part in parts { part.isHidden = true }
+
+        let sparks = SCNParticleSystem()
+        sparks.birthRate = 55
+        sparks.particleLifeSpan = 0.25
+        sparks.particleLifeSpanVariation = 0.08
+        sparks.particleSize = 0.06
+        sparks.particleColor = Self.engineGlowColor.withAlphaComponent(0.8)
+        sparks.blendMode = .additive
+        sparks.emittingDirection = SCNVector3(0, 0, -1)
+        sparks.particleVelocity = 3
+        sparks.particleVelocityVariation = 1.5
+        sparks.spreadingAngle = 40
+        sparks.stretchFactor = 2
+        sparks.isAffectedByGravity = false
+        sparks.isLightingEnabled = false
+
+        let emitter = SCNNode()
+        emitter.position = SCNVector3(brokenWingSide * 0.9, -0.1, 0.2)
+        emitter.addParticleSystem(sparks)
+        airframe.addChildNode(emitter)
+        wingSparkEmitter = emitter
+    }
+
+    func repairWings() {
+        guard brokenWingSide != 0 else { return }
+        brokenWingSide = 0
+        for part in leftWingParts + rightWingParts { part.isHidden = false }
+        wingSparkEmitter?.removeFromParentNode()
+        wingSparkEmitter = nil
+    }
+
+    /// Post-damage invulnerability blink, SNES style.
+    func flashInvulnerable(duration: TimeInterval) {
+        airframe.removeAction(forKey: "invulnBlink")
+        let blink = SCNAction.sequence([
+            SCNAction.fadeOpacity(to: 0.25, duration: 0.08),
+            SCNAction.fadeOpacity(to: 1.0, duration: 0.08)
+        ])
+        let count = max(1, Int(duration / 0.16))
+        let settle = SCNAction.fadeOpacity(to: 1.0, duration: 0.05)
+        airframe.runAction(
+            SCNAction.sequence([SCNAction.repeat(blink, count: count), settle]),
+            forKey: "invulnBlink"
+        )
     }
 }
 
@@ -395,4 +528,3 @@ extension Float {
         Swift.max(range.lowerBound, Swift.min(range.upperBound, self))
     }
 }
-
