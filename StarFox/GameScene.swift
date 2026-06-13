@@ -268,6 +268,11 @@ class GameScene: SCNScene {
         // Cinematic post-processing — this is what makes the sun, engine
         // glow, lasers and accent lights actually *bloom* against the
         // sunset instead of reading as flat cutouts.
+        //
+        // Disabled on Simulator: as of iOS 26 the HDR + bloom + colorFringe
+        // combo trips Metal's "cannot create View from Memoryless texture"
+        // validation assertion. Real devices are fine.
+        #if !targetEnvironment(simulator)
         cam.wantsHDR = true
         cam.bloomThreshold = 0.78
         cam.bloomIntensity = 1.35
@@ -280,6 +285,7 @@ class GameScene: SCNScene {
         cam.vignettingPower = 1.4
         cam.colorFringeStrength = 0.25
         cam.colorFringeIntensity = 0.7
+        #endif
 
         cameraNode.camera = cam
         cameraCurrentFOV = cameraBaseFOV
