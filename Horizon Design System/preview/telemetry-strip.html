@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Telemetry strip</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 32px 24px; background: url('../assets/starfox-bg.png') center/cover; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+  .strip {
+    font-family: 'JetBrains Mono';
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: rgba(255,245,232,0.85);
+    display: flex; gap: 24px;
+    padding: 8px 18px;
+    background: rgba(10,6,18,0.45);
+    border: 1px solid rgba(255,245,232,0.12);
+    border-radius: 2px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+  }
+  .k { color: rgba(255,245,232,0.55); margin-right: 6px; }
+</style>
+</head>
+<body>
+  <div class="strip">
+    <div><span class="k">ALT</span>12,840 ft</div>
+    <div><span class="k">SPD</span>0.82 M</div>
+    <div><span class="k">HDG</span>287°</div>
+  </div>
+</body>
+</html>

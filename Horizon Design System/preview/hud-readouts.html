@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Score panel</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: url('../assets/starfox-bg.png') center/cover; min-height: 240px; color: #fff5e8; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+  .stack.r { align-items: flex-end; text-align: right; }
+  .label { font: 500 11px 'JetBrains Mono'; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,245,232,0.65); }
+  .v   { font: 300 38px/1 'JetBrains Mono'; letter-spacing:-0.02em; margin-top: 4px; }
+  .v-sm{ font: 300 28px/1 'JetBrains Mono'; margin-top: 4px; }
+  .ember { color: #ffb347; }
+</style>
+</head>
+<body>
+  <div class="pair">
+    <div class="stack">
+      <div><div class="label">Score</div><div class="v">2,450</div></div>
+      <div><div class="label">Rings</div><div class="v-sm">23</div></div>
+    </div>
+    <div class="stack r">
+      <div><div class="label">Wave</div><div class="v">03</div></div>
+      <div><div class="label">Multiplier</div><div class="v-sm ember">×2.0</div></div>
+    </div>
+  </div>
+</body>
+</html>

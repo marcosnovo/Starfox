@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sky palette</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--silhouette-void); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .swatch { display: flex; flex-direction: column; gap: 8px; }
+  .chip { height: 84px; border-radius: 4px; border: 1px solid var(--surface-hairline); }
+  .meta { display: flex; justify-content: space-between; font: 500 10px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; }
+  .name { color: var(--ink-bone); }
+  .hex  { color: var(--ink-dim); letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#2a1a3a"></div><div class="meta"><span class="name">deep</span><span class="hex">2a1a3a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#7a3a4a"></div><div class="meta"><span class="name">plum</span><span class="hex">7a3a4a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#d2603a"></div><div class="meta"><span class="name">ember</span><span class="hex">d2603a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#f59045"></div><div class="meta"><span class="name">flare</span><span class="hex">f59045</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#fcd793"></div><div class="meta"><span class="name">haze</span><span class="hex">fcd793</span></div></div>
+  </div>
+</body>
+</html>

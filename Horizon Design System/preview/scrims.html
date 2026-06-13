@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Scrim system</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 16px; background: var(--silhouette-void); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .frame { position: relative; height: 180px; border-radius: 4px; overflow: hidden; background: url('../assets/starfox-bg.png') center/cover; border: 1px solid var(--surface-hairline); }
+  .scrim { position: absolute; inset: 0; }
+  .uniform { background: rgba(10,6,18,0.55); backdrop-filter: blur(2px); }
+  .pause   { background: rgba(10,6,18,0.55); backdrop-filter: blur(6px); }
+  .vignette { background: linear-gradient(180deg, rgba(10,6,18,0.45) 0%, rgba(10,6,18,0) 35%, rgba(10,6,18,0) 60%, rgba(10,6,18,0.55) 100%); }
+  .tag { position: absolute; left: 12px; bottom: 10px; font: 500 10px 'JetBrains Mono'; letter-spacing: 0.22em; text-transform: uppercase; color: #fff5e8; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="frame"><div class="scrim vignette"></div><div class="tag">Vignette</div></div>
+    <div class="frame"><div class="scrim uniform"></div><div class="tag">Uniform · 2px blur</div></div>
+    <div class="frame"><div class="scrim pause"></div><div class="tag">Pause · 6px blur</div></div>
+  </div>
+</body>
+</html>

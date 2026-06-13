@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80" viewBox="0 0 320 80" fill="none">
+  
+  <line x1="20" y1="22" x2="300" y2="22" stroke="#fff5e8" stroke-width="1"></line>
+  
+  <path d="M 140 22 A 20 20 0 0 1 180 22" stroke="#fff5e8" stroke-width="1.5" fill="none"></path>
+  
+  <text x="160" y="60" text-anchor="middle" font-family="Inter Tight, system-ui, sans-serif" font-weight="200" font-size="34" fill="#fff5e8" letter-spacing="14">HORIZON</text>
+</svg>

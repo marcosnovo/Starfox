@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Brand mark</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 32px; background: url('../assets/starfox-bg.png') center/cover; min-height: 240px; }
+  .scrim { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(10,6,18,0.45) 0%, rgba(10,6,18,0) 35%, rgba(10,6,18,0) 60%, rgba(10,6,18,0.55) 100%); z-index: 0; }
+  .stack { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .eyebrow { font: 500 10px 'JetBrains Mono'; letter-spacing: 0.32em; text-transform: uppercase; color: #f5d8a8; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+  .mark { position: relative; padding: 12px 0; }
+  .mark .line { width: 320px; height: 1px; background: #fff5e8; opacity: 0.85; }
+  .mark .arc { position: absolute; left: 130px; bottom: 38px; width: 60px; height: 30px; border: 1.5px solid #fff5e8; border-bottom: 0; border-radius: 30px 30px 0 0; }
+  .mark .word { font: 200 56px 'Inter Tight'; letter-spacing: 14px; color: #fff5e8; margin-top: 14px; text-shadow: 0 1px 12px rgba(0,0,0,0.5); }
+  .tag { font: 300 italic 18px 'Inter Tight'; color: #f5d8a8; margin-top: 4px; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+</style>
+</head>
+<body>
+  <div class="scrim"></div>
+  <div class="stack">
+    <div class="eyebrow">An arcade flight game · 2026</div>
+    <div class="mark">
+      <div class="line"></div>
+      <div class="arc"></div>
+      <div class="word">HORIZON</div>
+    </div>
+    <div class="tag">Chase the light.</div>
+  </div>
+</body>
+</html>

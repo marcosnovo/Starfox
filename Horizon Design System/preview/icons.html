@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Icon set</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--silhouette-void); color: #fff5e8; }
+  .grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 14px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 4px; border: 1px solid rgba(255,245,232,0.08); border-radius: 4px; }
+  .cell svg { color: #fff5e8; }
+  .name { font: 500 9px 'JetBrains Mono'; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,245,232,0.65); }
+</style>
+</head>
+<body>
+  <div class="grid" id="g"></div>
+  <script>
+    const names = ["missile","bomb","laser","shield","ring","wave","multiplier","speed","alt","hdg","pause","play","settings","back","lock","trophy","chevron-r"];
+    const g = document.getElementById('g');
+    Promise.all(names.map(n => fetch(`../assets/icons/${n}.svg`).then(r => r.text()).then(svg => ({n, svg}))))
+      .then(items => {
+        items.forEach(({n, svg}) => {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.innerHTML = svg + `<div class="name">${n}</div>`;
+          g.appendChild(cell);
+        });
+      });
+  </script>
+</body>
+</html>

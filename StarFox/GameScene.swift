@@ -1468,9 +1468,8 @@ extension GameScene: SCNPhysicsContactDelegate {
         let projectile = [a, b].first { $0.name == "projectile" }
         let ship       = [a, b].first { $0.name == "ship" }
         let boss       = [a, b].first { $0.name == "boss" }
-        let solid      = [a, b].first {
-            $0.name == "obstacle" || $0.name == "enemy" || $0.name == "gateFrame"
-        }
+        let solidNames: Set<String> = ["obstacle", "enemy", "gateFrame"]
+        let solid      = [a, b].first { solidNames.contains($0.name ?? "") }
         let gateCenter = [a, b].first { $0.name == "gateCenter" }
         let ring       = [a, b].first { $0.name == "ring" }
         let powerUp    = [a, b].first { $0.name == "powerUp" }

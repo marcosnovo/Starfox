@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Glass surfaces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 24px;
+    background: url('../assets/starfox-bg.png') center/cover;
+    min-height: 280px;
+    font-family: "Inter Tight", system-ui, sans-serif;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .panel {
+    border-radius: 4px;
+    padding: 16px 16px 18px;
+    min-height: 168px;
+    display: flex;
+    flex-direction: column;
+    color: #fff5e8;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Tier 1 — translucent. HUD chrome floating over gameplay. */
+  .glass-thin {
+    background: rgba(10,6,18,0.40);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,245,232,0.10);
+  }
+
+  /* Tier 2 — dense glass. Menus, mission cards, results stat tiles. */
+  .glass-dense {
+    background: rgba(10,6,18,0.62);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,245,232,0.14);
+  }
+
+  /* Tier 3 — opaque ink. Modals, settings panels — total separation from world. */
+  .ink {
+    background: #110a1c;
+    border: 1px solid rgba(255,245,232,0.10);
+    box-shadow: 0 18px 42px -12px rgba(0,0,0,0.55);
+  }
+
+  .label {
+    font: 500 9px/1 'JetBrains Mono', monospace;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,245,232,0.55);
+  }
+  .title {
+    font: 300 22px/1.1 'Inter Tight';
+    letter-spacing: -0.015em;
+    color: #fff5e8;
+    margin-top: 8px;
+  }
+  .meta {
+    font: 400 11px/1.5 'JetBrains Mono', monospace;
+    color: rgba(255,245,232,0.55);
+    margin-top: auto;
+    padding-top: 10px;
+  }
+  .meta b { color: #fff5e8; font-weight: 500; }
+  .swatch {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    width: 14px; height: 14px;
+    border-radius: 999px;
+  }
+  .swatch.thin  { background: rgba(255,245,232,0.40); }
+  .swatch.dense { background: rgba(255,245,232,0.62); }
+  .swatch.ink   { background: #110a1c; box-shadow: 0 0 0 1px rgba(255,245,232,0.2); }
+
+  /* sample readout proves the blur is doing something */
+  .readout {
+    margin-top: 12px;
+    font: 300 32px/1 'JetBrains Mono', monospace;
+    letter-spacing: -0.01em;
+    color: #fff5e8;
+  }
+  .readout small {
+    display: block;
+    font: 500 9px/1 'JetBrains Mono';
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,245,232,0.55);
+    margin-bottom: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="panel glass-thin">
+      <span class="swatch thin"></span>
+      <div class="label">Tier 01 · Thin</div>
+      <div class="title">In-world HUD</div>
+      <div class="readout"><small>Score</small>2,450</div>
+      <div class="meta"><b>α 0.40</b> · blur 8 · ½px hairline</div>
+    </div>
+
+    <div class="panel glass-dense">
+      <span class="swatch dense"></span>
+      <div class="label">Tier 02 · Dense</div>
+      <div class="title">Menus &amp; cards</div>
+      <div class="readout"><small>Wave 03</small>Caldera</div>
+      <div class="meta"><b>α 0.62</b> · blur 14 · 1px line</div>
+    </div>
+
+    <div class="panel ink">
+      <span class="swatch ink"></span>
+      <div class="label">Tier 03 · Ink</div>
+      <div class="title">Modals &amp; sheets</div>
+      <div class="readout"><small>Settings</small>Opaque</div>
+      <div class="meta"><b>solid #110a1c</b> · soft drop</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Silhouette palette</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--silhouette-void); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .swatch { display: flex; flex-direction: column; gap: 8px; }
+  .chip { height: 84px; border-radius: 4px; border: 1px solid var(--surface-hairline); }
+  .meta { display: flex; justify-content: space-between; font: 500 10px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; }
+  .name { color: var(--ink-bone); }
+  .hex  { color: var(--ink-dim); letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#5a2838"></div><div class="meta"><span class="name">far</span><span class="hex">5a2838</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#3a1e2a"></div><div class="meta"><span class="name">mid</span><span class="hex">3a1e2a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#2a1820"></div><div class="meta"><span class="name">near</span><span class="hex">2a1820</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#1a0e1c"></div><div class="meta"><span class="name">ridge</span><span class="hex">1a0e1c</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#0a0612"></div><div class="meta"><span class="name">void</span><span class="hex">0a0612</span></div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Radius scale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 28px 24px;
+    background: var(--silhouette-void, #0a0612);
+    color: #fff5e8;
+    font-family: 'Inter Tight', system-ui, sans-serif;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+    align-items: stretch;
+  }
+  .item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  /* The block: a thick warm-amber tile so the corner cut reads, sitting on
+     a dashed bone outline that traces the original square. The contrast
+     between rounded fill and square outline makes 2/4/8 px instantly legible. */
+  .frame {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    border: 1px dashed rgba(255,245,232,0.16);
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255,245,232,0.025) 0 6px,
+        transparent 6px 12px
+      );
+  }
+  .block {
+    position: absolute;
+    inset: 0;
+    background: #f59045;
+    box-shadow: inset 0 -18px 32px -18px rgba(255,179,71,0.6);
+  }
+  .corner-tag {
+    position: absolute;
+    top: 0; left: 0;
+    font: 500 9px/1 'JetBrains Mono', monospace;
+    letter-spacing: 0.18em;
+    color: #0a0612;
+    background: #fff5e8;
+    padding: 4px 6px 3px;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .num {
+    font: 500 10px/1 'JetBrains Mono', monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,245,232,0.55);
+  }
+  .role {
+    font: 400 12px/1.35 'Inter Tight';
+    color: #fff5e8;
+  }
+  .role span {
+    color: rgba(255,245,232,0.55);
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item">
+      <div class="frame">
+        <div class="block" style="border-radius:0"></div>
+        <div class="corner-tag">0</div>
+      </div>
+      <div class="meta">
+        <div class="num">--r-0</div>
+        <div class="role">Sharp <span>· HUD readouts, shield</span></div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="frame">
+        <div class="block" style="border-radius:2px"></div>
+        <div class="corner-tag">2</div>
+      </div>
+      <div class="meta">
+        <div class="num">--r-xs</div>
+        <div class="role">Hairline cut <span>· telemetry chips</span></div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="frame">
+        <div class="block" style="border-radius:4px"></div>
+        <div class="corner-tag">4</div>
+      </div>
+      <div class="meta">
+        <div class="num">--r-sm</div>
+        <div class="role">Default <span>· buttons, panels, cards</span></div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="frame">
+        <div class="block" style="border-radius:10px"></div>
+        <div class="corner-tag">10</div>
+      </div>
+      <div class="meta">
+        <div class="num">--r-md</div>
+        <div class="role">Soft <span>· modals, mission tiles</span></div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="frame">
+        <div class="block" style="border-radius:9999px"></div>
+        <div class="corner-tag">∞</div>
+      </div>
+      <div class="meta">
+        <div class="num">--r-full</div>
+        <div class="role">Pill <span>· multiplier, badges</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
