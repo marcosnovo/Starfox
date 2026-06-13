@@ -53,7 +53,6 @@ struct HUDOverlay: View {
         ZStack {
             if inCombat {
                 topInfo
-                bottomInfo
                 radioPanel
             }
             phaseOverlays
@@ -71,8 +70,10 @@ struct HUDOverlay: View {
                 Spacer()
                 rightTopPanel
             }
-            .padding(.horizontal, 56)
-            .padding(.top, 16)
+            // Inset clears the notch; the top inset drops the panels below
+            // the corner ✕ / ⏸ buttons so nothing overlaps.
+            .padding(.horizontal, 72)
+            .padding(.top, 48)
             Spacer()
         }
     }
@@ -90,6 +91,20 @@ struct HUDOverlay: View {
                     }
                 }
                 shieldBar
+            }
+            // Boost gauge tucked under the shield bar.
+            VStack(alignment: .leading, spacing: 3) {
+                HUDLabel(text: "BOOST", size: 9)
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.hudPanel)
+                        .frame(width: 124, height: 6)
+                    Rectangle()
+                        .fill(state.boost < 0.25 ? Color.hudOrange : Color.hudMint)
+                        .frame(width: max(2, 124 * CGFloat(state.boost)), height: 6)
+                }
+                .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
+                .animation(.linear(duration: 0.12), value: state.boost)
             }
             HStack(spacing: 5) {
                 ForEach(0..<max(0, state.lives - 1), id: \.self) { _ in
@@ -136,48 +151,13 @@ struct HUDOverlay: View {
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
                     .foregroundColor(.hudMint)
             }
-        }
-    }
-
-    private var bottomInfo: some View {
-        VStack {
-            Spacer()
-            HStack(alignment: .bottom) {
-                boostGauge
-                Spacer()
-                bombsView
-            }
-            // Inset past the touch clusters (FIRE/ROLL/BOMB right, BST/BRK left).
-            .padding(.horizontal, 170)
-            .padding(.bottom, 28)
-        }
-    }
-
-    private var boostGauge: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HUDLabel(text: "BOOST", size: 10)
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Color.hudPanel)
-                    .frame(width: 110, height: 7)
-                Rectangle()
-                    .fill(state.boost < 0.25 ? Color.hudOrange : Color.hudMint)
-                    .frame(width: max(2, 110 * CGFloat(state.boost)), height: 7)
-            }
-            .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
-            // Smooth the ~10 Hz snapshot steps into a continuous sweep.
-            .animation(.linear(duration: 0.12), value: state.boost)
-        }
-    }
-
-    private var bombsView: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            HUDLabel(text: "BOMBS", size: 10)
-            HStack(spacing: 5) {
+            // Bomb pips tucked under the score.
+            HStack(spacing: 6) {
+                HUDLabel(text: "BOMBS", size: 9)
                 ForEach(0..<state.maxBombs, id: \.self) { index in
                     Circle()
                         .fill(index < state.bombs ? Color.hudOrange : Color.hudOrange.opacity(0.15))
-                        .frame(width: 11, height: 11)
+                        .frame(width: 10, height: 10)
                 }
             }
         }
@@ -188,8 +168,9 @@ struct HUDOverlay: View {
     @ViewBuilder
     private var radioPanel: some View {
         if let radio = state.radio {
+            // Centered near the top, between the corner panels and clear of
+            // the bottom button clusters.
             VStack {
-                Spacer()
                 HStack(spacing: 10) {
                     Text(radio.callsign)
                         .font(.system(size: 11, weight: .heavy, design: .monospaced))
@@ -205,7 +186,8 @@ struct HUDOverlay: View {
                 .padding(.vertical, 8)
                 .background(Color.hudPanel)
                 .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
-                .padding(.bottom, 24)
+                .padding(.top, 52)
+                Spacer()
             }
             .transition(.opacity)
             .animation(.easeInOut(duration: 0.2), value: state.radio)

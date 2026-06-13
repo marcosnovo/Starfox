@@ -65,8 +65,10 @@ class ShipNode: SCNNode {
     private static func mintAccentMaterial() -> SCNMaterial {
         let material = SCNMaterial()
         material.lightingModel = .constant
-        material.diffuse.contents = UIColor.cMintMetal
-        material.emission.contents = UIColor.cMintMetal.withAlphaComponent(0.55)
+        // Bright emissive so the bloom turns the wing edges and cockpit
+        // into glowing trim against the dark silhouette.
+        material.diffuse.contents = UIColor(red: 0.6, green: 1.0, blue: 0.92, alpha: 1)
+        material.emission.contents = UIColor(red: 0.45, green: 1.0, blue: 0.9, alpha: 1)
         material.isDoubleSided = true
         return material
     }
@@ -171,6 +173,19 @@ class ShipNode: SCNNode {
         let canopy = SCNNode(geometry: canopyGeom)
         canopy.position = SCNVector3(0, 0.13, 0.85)
         frame.addChildNode(canopy)
+
+        // Glowing cockpit dome — focal point so the silhouette reads as a
+        // ship, not a blob. Pulses gently.
+        let domeGeom = SCNSphere(radius: 0.14)
+        domeGeom.materials = [mint]
+        let dome = SCNNode(geometry: domeGeom)
+        dome.scale = SCNVector3(1.0, 0.6, 1.4)
+        dome.position = SCNVector3(0, 0.2, 0.95)
+        dome.runAction(SCNAction.repeatForever(SCNAction.sequence([
+            SCNAction.fadeOpacity(to: 0.65, duration: 1.1),
+            SCNAction.fadeOpacity(to: 1.0, duration: 1.1)
+        ])))
+        frame.addChildNode(dome)
 
         // Canopy mint strip — tiny visor accent.
         let visorGeom = SCNBox(width: 0.20, height: 0.05, length: 0.30, chamferRadius: 0.01)
@@ -318,48 +333,52 @@ class ShipNode: SCNNode {
         trailColorAnim.duration = 1.0
         let trailColorController = SCNParticlePropertyController(animation: trailColorAnim)
 
+        // Two tight blue-hot flames. Short lifespan + low stretch keeps the
+        // exhaust as compact cones behind the ship rather than a screen-
+        // filling starburst (the camera sits right behind, so anything
+        // long-lived and stretched smears across the whole view).
         for x: Float in [-0.32, 0.32] {
             let jet = SCNParticleSystem()
-            jet.birthRate = 150
-            jet.particleLifeSpan = 0.11
-            jet.particleLifeSpanVariation = 0.03
-            jet.particleSize = 0.13
+            jet.birthRate = 90
+            jet.particleLifeSpan = 0.07
+            jet.particleLifeSpanVariation = 0.02
+            jet.particleSize = 0.16
             jet.particleSizeVariation = 0.03
             jet.particleColor = engineCoreColor.withAlphaComponent(0.95)
             jet.particleImage = jetImage
             jet.blendMode = .additive
             jet.emittingDirection = SCNVector3(0, 0, -1)
-            jet.particleVelocity = 14
-            jet.particleVelocityVariation = 2.0
-            jet.acceleration = SCNVector3(0, -0.06, -3.0)
-            jet.spreadingAngle = 5
-            jet.stretchFactor = 5.5
+            jet.particleVelocity = 8
+            jet.particleVelocityVariation = 1.0
+            jet.acceleration = SCNVector3(0, 0, -1.5)
+            jet.spreadingAngle = 4
+            jet.stretchFactor = 1.6
             jet.fresnelExponent = 0
             jet.isAffectedByGravity = false
             jet.isLightingEnabled = false
 
             let trail = SCNParticleSystem()
-            trail.birthRate = 70
-            trail.particleLifeSpan = 0.44
-            trail.particleLifeSpanVariation = 0.08
-            trail.particleSize = 0.10
+            trail.birthRate = 45
+            trail.particleLifeSpan = 0.20
+            trail.particleLifeSpanVariation = 0.05
+            trail.particleSize = 0.12
             trail.particleSizeVariation = 0.025
-            trail.particleColor = engineGlowColor.withAlphaComponent(0.52)
+            trail.particleColor = engineGlowColor.withAlphaComponent(0.45)
             trail.particleImage = trailImage
-            trail.blendMode = .alpha
+            trail.blendMode = .additive
             trail.emittingDirection = SCNVector3(0, 0, -1)
-            trail.particleVelocity = 6.0
-            trail.particleVelocityVariation = 1.0
-            trail.acceleration = SCNVector3(0, -0.04, -0.6)
-            trail.spreadingAngle = 3
-            trail.stretchFactor = 4.2
+            trail.particleVelocity = 4.0
+            trail.particleVelocityVariation = 0.6
+            trail.acceleration = SCNVector3(0, 0, -0.4)
+            trail.spreadingAngle = 2
+            trail.stretchFactor = 1.4
             trail.fresnelExponent = 0
             trail.isAffectedByGravity = false
             trail.isLightingEnabled = false
             trail.propertyControllers = [.color: trailColorController]
 
             let emitter = SCNNode()
-            emitter.position = SCNVector3(x, -0.02, -1.50)
+            emitter.position = SCNVector3(x, -0.02, -1.55)
             emitter.addParticleSystem(jet)
             emitter.addParticleSystem(trail)
             ship.engineJetSystems.append(jet)
@@ -411,16 +430,17 @@ class ShipNode: SCNNode {
         }
 
         for jet in engineJetSystems {
-            jet.birthRate = (100 + (p * 160)) * flicker
-            jet.particleVelocity = 10 + (p * 8)
-            jet.particleSize = 0.10 + (p * 0.05)
-            jet.stretchFactor = 5.0 + (p * 1.8)
+            jet.birthRate = (80 + (p * 90)) * flicker
+            jet.particleVelocity = 7 + (p * 5)
+            jet.particleSize = 0.14 + (p * 0.05)
+            jet.stretchFactor = 1.4 + (p * 0.8)
         }
         for trail in engineTrailSystems {
-            trail.birthRate = (40 + (p * 60)) * flicker
-            trail.particleVelocity = 5.0 + (p * 2.5)
-            trail.particleLifeSpan = 0.35 + (p * 0.12)
-            trail.particleSize = 0.09 + (p * 0.04)
+            trail.birthRate = (38 + (p * 40)) * flicker
+            trail.particleVelocity = 3.5 + (p * 2.0)
+            trail.particleLifeSpan = 0.18 + (p * 0.08)
+            trail.particleSize = 0.11 + (p * 0.04)
+            trail.stretchFactor = 1.3 + (p * 0.6)
         }
     }
 

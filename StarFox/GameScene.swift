@@ -20,25 +20,31 @@ final class BoltNode: SCNNode {
 /// the corridor uses constant-lighting materials, so bolts carry no
 /// dynamic lights — emission does all the visual work for free.
 private enum BoltAssets {
+    // Bright cyan-mint energy bolt — over-bright emission so the camera
+    // bloom blows it into a glowing tracer that reads clearly as "ours"
+    // against the orange enemy fire.
     static let laserGeometry: SCNGeometry = {
-        let geom = SCNCapsule(capRadius: 0.07, height: 2.6)
+        let geom = SCNCapsule(capRadius: 0.085, height: 2.2)
         let m = SCNMaterial()
         m.lightingModel = .constant
-        m.diffuse.contents = UIColor.cMintHighlight
-        m.emission.contents = UIColor.cMintMetal
+        m.diffuse.contents = UIColor(red: 0.75, green: 1.0, blue: 0.95, alpha: 1)
+        m.emission.contents = UIColor(red: 0.45, green: 1.0, blue: 0.92, alpha: 1)
+        m.writesToDepthBuffer = false
         geom.materials = [m]
         return geom
     }()
     static let laserShape = SCNPhysicsShape(
-        geometry: SCNCylinder(radius: 0.16, height: 2.8), options: nil
+        geometry: SCNCylinder(radius: 0.18, height: 2.4), options: nil
     )
 
+    // Hot orange enemy bolt.
     static let enemyGeometry: SCNGeometry = {
-        let geom = SCNSphere(radius: 0.32)
+        let geom = SCNSphere(radius: 0.34)
         let m = SCNMaterial()
         m.lightingModel = .constant
-        m.diffuse.contents = UIColor(hex: "#D07040")
-        m.emission.contents = UIColor(hex: "#A05030")
+        m.diffuse.contents = UIColor(red: 1.0, green: 0.62, blue: 0.32, alpha: 1)
+        m.emission.contents = UIColor(red: 1.0, green: 0.50, blue: 0.22, alpha: 1)
+        m.writesToDepthBuffer = false
         geom.materials = [m]
         return geom
     }()
@@ -257,8 +263,24 @@ class GameScene: SCNScene {
         let cam = SCNCamera()
         cam.fieldOfView = cameraBaseFOV
         cam.zFar = 500
-        cam.wantsHDR = false
         cam.wantsExposureAdaptation = false
+
+        // Cinematic post-processing — this is what makes the sun, engine
+        // glow, lasers and accent lights actually *bloom* against the
+        // sunset instead of reading as flat cutouts.
+        cam.wantsHDR = true
+        cam.bloomThreshold = 0.78
+        cam.bloomIntensity = 1.35
+        cam.bloomBlurRadius = 14.0
+        cam.bloomIterationCount = 3
+        cam.exposureOffset = 0.10
+        cam.saturation = 1.18
+        cam.contrast = 0.08
+        cam.vignettingIntensity = 0.55
+        cam.vignettingPower = 1.4
+        cam.colorFringeStrength = 0.25
+        cam.colorFringeIntensity = 0.7
+
         cameraNode.camera = cam
         cameraCurrentFOV = cameraBaseFOV
         cameraNode.position = SCNVector3(0, cameraOffsetY, cameraOffsetZ)
@@ -882,12 +904,11 @@ class GameScene: SCNScene {
         ))
         let speed: Float = 70
         bolt.velocity = SCNVector3(dir.x * speed, dir.y * speed, dir.z * speed)
-        // Capsule axis is +Y; point it along the flight direction.
-        bolt.look(
-            at: SCNVector3(origin.x + dir.x, origin.y + dir.y, origin.z + dir.z),
-            up: SCNVector3(0, 1, 0),
-            localFront: SCNVector3(0, 1, 0)
-        )
+        // Capsule axis is +Y; a fixed +90° pitch maps it to +Z (forward).
+        // Bolts travel almost straight ahead, so a fixed orientation reads
+        // clean — and avoids the degenerate look(at:) basis that made the
+        // bolts spray in random directions.
+        bolt.eulerAngles = SCNVector3(Float.pi / 2, 0, 0)
 
         let body = SCNPhysicsBody(type: .kinematic, shape: BoltAssets.laserShape)
         body.categoryBitMask = PhysicsCategory.projectile
