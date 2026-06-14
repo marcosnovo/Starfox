@@ -110,6 +110,35 @@ class SkySystem {
         fill.position = SCNVector3(0, 3.0, -6.0)
         rootNode.addChildNode(fill)
         fillLightNode = fill
+
+        // Sun rim — a bright warm directional coming from the sun (ahead,
+        // +Z) toward the camera. A default directional shines toward -Z;
+        // tilting down rakes the tops/leading edges of hulls flying ahead
+        // of the camera, giving lit metal the cinematic backlit halo
+        // instead of reading as flat cutouts.
+        let rim = SCNNode()
+        let rimLight = SCNLight()
+        rimLight.type = .directional
+        rimLight.intensity = 950
+        rimLight.castsShadow = false
+        rimLight.color = UIColor(hex: "#FFE4B0")
+        rim.light = rimLight
+        rim.eulerAngles = SCNVector3(-0.3, 0, 0)
+        rootNode.addChildNode(rim)
+
+        // Cool teal counter-fill raking up from below, so the shadowed,
+        // camera-facing underside of hulls keeps subtle definition (the
+        // warm-key / cool-fill contrast that makes models read as 3D).
+        // Directional so it lights hulls anywhere along the corridor.
+        let cool = SCNNode()
+        let coolLight = SCNLight()
+        coolLight.type = .directional
+        coolLight.intensity = 260
+        coolLight.castsShadow = false
+        coolLight.color = UIColor(hex: "#5A7E8C")
+        cool.light = coolLight
+        cool.eulerAngles = SCNVector3(Float.pi - 0.35, 0, 0)
+        rootNode.addChildNode(cool)
     }
 
     func setupSunNodes() {
