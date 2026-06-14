@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>App icon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 28px; background: var(--silhouette-void); color: #fff5e8; }
+  .row { display: flex; gap: 32px; align-items: flex-end; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .label { font: 500 10px 'JetBrains Mono', monospace; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,245,232,0.6); }
+
+  /* The icon = a tight crop of the reference scene.
+     We use the actual starfox-bg.png as background-image, positioned so the
+     sun + plane + ridge silhouettes land in the icon's safe zone. */
+  .ico {
+    position: relative;
+    overflow: hidden;
+    background-image: url('../assets/starfox-bg.png');
+    /* image is 1000x562. Center horizontally on the sun (~50%),
+       crop vertically so the sun sits ~40% from top and the plane fills the bottom 50%.
+       background-size 200% means we zoom in 2x and only show the heroic central crop. */
+    background-size: 240%;
+    background-position: 50% 56%;
+    background-repeat: no-repeat;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.6);
+  }
+  /* gentle warm vignette to clean up icon edges */
+  .ico::after {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 70%, rgba(0,0,0,0) 55%, rgba(10,6,18,0.35) 100%),
+      linear-gradient(180deg, rgba(42,26,58,0.18) 0%, rgba(42,26,58,0) 30%);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item">
+      <div class="ico" style="width:120px;height:120px;border-radius:28px"></div>
+      <div class="label">120 px</div>
+    </div>
+
+    <div class="item">
+      <div class="ico" style="width:80px;height:80px;border-radius:18px"></div>
+      <div class="label">80 px</div>
+    </div>
+
+    <div class="item">
+      <div class="ico" style="width:48px;height:48px;border-radius:11px"></div>
+      <div class="label">48 px</div>
+    </div>
+  </div>
+</body>
+</html>

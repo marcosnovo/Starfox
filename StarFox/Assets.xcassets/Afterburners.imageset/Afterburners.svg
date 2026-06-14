@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 562">
+  <defs>
+    <linearGradient id="flameG" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"></stop>
+      <stop offset="0.10" stop-color="#fff5cc" stop-opacity="1"></stop>
+      <stop offset="0.30" stop-color="#ffc55c" stop-opacity="1"></stop>
+      <stop offset="0.55" stop-color="#ff7a2a" stop-opacity="0.9"></stop>
+      <stop offset="0.85" stop-color="#c4501f" stop-opacity="0.4"></stop>
+      <stop offset="1" stop-color="#7a2a2c" stop-opacity="0"></stop>
+    </linearGradient>
+    <radialGradient id="flameGlow" cx="0.5" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#ffd47a" stop-opacity="0.45"></stop>
+      <stop offset="1" stop-color="#ffd47a" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  
+  <ellipse cx="479" cy="465" rx="44" ry="26" fill="url(#flameGlow)"></ellipse>
+  <ellipse cx="521" cy="465" rx="44" ry="26" fill="url(#flameGlow)"></ellipse>
+  
+  <path d="M468,452&#xA;           C462,490 462,540 470,562&#xA;           L490,562&#xA;           C498,540 498,490 492,452 Z" fill="url(#flameG)"></path>
+  
+  <path d="M508,452&#xA;           C502,490 502,540 510,562&#xA;           L530,562&#xA;           C538,540 538,490 532,452 Z" fill="url(#flameG)"></path>
+  
+  <path d="M474,456 C470,484 470,520 476,548 L484,548 C490,520 490,484 486,456 Z" fill="#ffffff" fill-opacity="0.6"></path>
+  <path d="M514,456 C510,484 510,520 516,548 L524,548 C530,520 530,484 526,456 Z" fill="#ffffff" fill-opacity="0.6"></path>
+</svg>

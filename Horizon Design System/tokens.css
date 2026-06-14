@@ -1,0 +1,132 @@
+/* ============================================================
+   STARFOX / HORIZON — Design Tokens
+   Single source of truth. Import this first in any stylesheet.
+   ============================================================ */
+
+:root {
+  /* ----- TYPEFACES -----------------------------------------
+     Display: Inter Tight (200, 300, 400, 500 + italic 300/400)
+     Mono:    JetBrains Mono (300, 400, 500)
+     Load via Google Fonts. */
+  --font-display: "Inter Tight", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ----- COLOR · SKY (sunset gradient stops) ----------------*/
+  --sky-deep:   #2a1a3a;
+  --sky-plum:   #7a3a4a;
+  --sky-ember:  #d2603a;
+  --sky-flare:  #f59045;
+  --sky-haze:   #fcd793;
+
+  /* ----- COLOR · SILHOUETTE (mountain layers, back→front) ---*/
+  --silhouette-far:   #5a2838;
+  --silhouette-mid:   #3a1e2a;
+  --silhouette-near:  #2a1820;
+  --silhouette-ridge: #1a0e1c;
+  --silhouette-void:  #0a0612;
+
+  /* ----- COLOR · INK (type & UI) ---------------------------*/
+  --ink-bone:  #fff5e8;
+  --ink-haze:  #f5d8a8;
+  --ink-dim:   rgba(255, 245, 232, 0.65);
+  --ink-ghost: rgba(255, 245, 232, 0.35);
+
+  /* ----- COLOR · ACCENT / SIGNAL ---------------------------*/
+  --accent-ember:       #ffb347;  /* multiplier, achievements */
+  --accent-flare:       #ff6a1a;  /* lock-on, engine */
+  --accent-core:        #fff5d0;  /* sun core, hotspot */
+  --accent-shield-cyan: #7adfd0;  /* shield charge */
+  --accent-warn:        #ff5566;  /* low shield, error */
+
+  /* ----- GRADIENTS -----------------------------------------*/
+  --gradient-sky-dusk: linear-gradient(
+    to bottom,
+    var(--sky-deep) 0%,
+    var(--sky-plum) 30%,
+    var(--sky-ember) 55%,
+    var(--sky-flare) 80%,
+    var(--sky-haze) 100%
+  );
+  --gradient-scrim-top: linear-gradient(
+    180deg,
+    rgba(10, 6, 18, 0.45) 0%,
+    rgba(10, 6, 18, 0) 35%
+  );
+  --gradient-scrim-bottom: linear-gradient(
+    180deg,
+    rgba(10, 6, 18, 0) 60%,
+    rgba(10, 6, 18, 0.55) 100%
+  );
+
+  /* ----- SPACING (4pt base) --------------------------------*/
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ----- RADIUS --------------------------------------------
+     HUD elements stay sharp (0–2). Menus & cards use 4. Pills use full. */
+  --radius-0:    0px;
+  --radius-1:    2px;
+  --radius-2:    4px;
+  --radius-3:    8px;
+  --radius-full: 9999px;
+
+  /* ----- STROKE WEIGHTS -----------------------------------*/
+  --stroke-hairline: 1px;
+  --stroke-thin:     1.5px;
+  --stroke-medium:   2px;
+  --stroke-bold:     3px;
+
+  /* ----- TYPE SCALE ---------------------------------------*/
+  --type-display:   88px;  /* hero / cover */
+  --type-title:     42px;  /* screen titles */
+  --type-heading:   22px;  /* section heads */
+  --type-body:      15px;  /* descriptions */
+  --type-caption:   12px;
+  --type-label:     11px;  /* mono uppercase labels */
+  --type-readout-xl:64px;  /* score, big mono numbers */
+  --type-readout:   32px;  /* multiplier, secondary numbers */
+  --type-telemetry: 13px;  /* alt/spd/hdg strip */
+
+  --tracking-display:  -0.04em;
+  --tracking-title:    -0.02em;
+  --tracking-readout:  -0.02em;
+  --tracking-label:     0.22em;  /* uppercase mono */
+  --tracking-eyebrow:   0.32em;
+
+  /* ----- ELEVATION & EFFECTS ------------------------------*/
+  --shadow-text-hud: 0 1px 8px rgba(0, 0, 0, 0.5);
+  --shadow-icon:     drop-shadow(0 1px 6px rgba(0, 0, 0, 0.55));
+  --blur-glass:      blur(14px);
+  --blur-pause:      blur(6px);
+
+  /* ----- SURFACES (semi-transparent panels over sky) ------*/
+  --surface-panel:    rgba(10, 6, 18, 0.55);
+  --surface-panel-hi: rgba(10, 6, 18, 0.60);
+  --surface-hairline: rgba(255, 245, 232, 0.12);
+  --surface-divider:  rgba(255, 245, 232, 0.10);
+
+  /* ----- MOTION -------------------------------------------*/
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in:  cubic-bezier(0.6, 0, 0.8, 0.4);
+  --duration-instant: 80ms;
+  --duration-fast:    160ms;
+  --duration-base:    220ms;
+  --duration-slow:    480ms;
+}
+
+/* Base reset + smoothing */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--silhouette-void);
+  color: var(--ink-bone);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

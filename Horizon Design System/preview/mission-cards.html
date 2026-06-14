@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Mission cards</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 16px; background: url('../assets/starfox-bg.png') center/cover; min-height: 220px; color: #fff5e8; }
+  .scrim { position: fixed; inset: 0; background: rgba(10,6,18,0.55); backdrop-filter: blur(2px); z-index: 0; }
+  .row { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .card {
+    height: 168px; border-radius: 4px;
+    background: rgba(10,6,18,0.55); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,245,232,0.12);
+    padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .card.completed { border-color: rgba(255,179,71,0.5); }
+  .card.locked { opacity: 0.45; }
+  .eyebrow { font: 500 10px 'JetBrains Mono'; letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,245,232,0.65); }
+  .title { font: 300 22px/1.15 'Inter Tight'; letter-spacing:-0.01em; color: #fff5e8; margin-top: 4px; }
+  .sub { font: 400 12px/1.4 'Inter Tight'; color: rgba(255,245,232,0.65); margin-top: 4px; }
+  .foot { display: flex; justify-content: space-between; align-items: center; }
+  .stars { display: flex; gap: 5px; }
+  .star { width: 7px; height: 7px; border-radius: 50%; border: 1px solid rgba(255,179,71,0.7); }
+  .star.on { background: #ffb347; border-color: #ffb347; }
+  .ico { display: inline-block; }
+</style>
+</head>
+<body>
+  <div class="scrim"></div>
+  <div class="row">
+    <div class="card">
+      <div>
+        <div class="eyebrow">Wave 03</div>
+        <div class="title">Caldera</div>
+        <div class="sub">The pass narrows. Hold steady.</div>
+      </div>
+      <div class="foot"><span class="eyebrow">Available</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6 L16 12 L10 18"/></svg>
+      </div>
+    </div>
+    <div class="card completed">
+      <div>
+        <div class="eyebrow">Wave 02</div>
+        <div class="title">The Pass</div>
+        <div class="sub">Cleared. ×3.4 best chain.</div>
+      </div>
+      <div class="foot"><span class="eyebrow" style="color:#ffb347">Completed</span>
+        <div class="stars"><div class="star on"></div><div class="star on"></div><div class="star"></div></div>
+      </div>
+    </div>
+    <div class="card locked">
+      <div>
+        <div class="eyebrow">Wave 04</div>
+        <div class="title">Long Night</div>
+        <div class="sub">Clear Caldera to unlock.</div>
+      </div>
+      <div class="foot"><span class="eyebrow">Locked</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,245,232,0.65)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="11" width="12" height="9" rx="1"/><path d="M9 11 L9 7 C9 5 10.5 4 12 4 S15 5 15 7 L15 11"/></svg>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

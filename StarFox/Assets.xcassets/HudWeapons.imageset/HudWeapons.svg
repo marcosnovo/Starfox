@@ -1,0 +1,14 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 562" width="1000" height="562">
+  <g font-family="&#39;JetBrains Mono&#39;, ui-monospace, monospace">
+    <text x="968" y="498" font-size="10" letter-spacing="2.2" fill="#fff5e8" opacity="0.85" text-anchor="end">WEAPONS</text>
+  </g>
+  <g fill="#fff5e8" opacity="0.85">
+    
+    <path d="M886 510 L889 504 L892 510 L892 528 L894 532 L884 532 L886 528 Z"></path>
+    
+    <path d="M918 506 L922 498 L926 506 L926 532 L928 536 L916 536 L918 532 Z" fill="#ffb347" opacity="0.95"></path>
+    
+    <path d="M952 510 L955 504 L958 510 L958 528 L960 532 L950 532 L952 528 Z"></path>
+  </g>
+</svg>

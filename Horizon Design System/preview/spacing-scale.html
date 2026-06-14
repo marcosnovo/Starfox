@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Spacing scale</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 32px; background: var(--silhouette-void); color: var(--ink-bone); }
+  .row { display: flex; align-items: flex-end; gap: 24px; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .block { background: var(--accent-ember); border-radius: 1px; }
+  .num { font: 500 10px 'JetBrains Mono'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-dim); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="block" style="width:4px;height:4px"></div><div class="num">4</div></div>
+    <div class="item"><div class="block" style="width:8px;height:8px"></div><div class="num">8</div></div>
+    <div class="item"><div class="block" style="width:12px;height:12px"></div><div class="num">12</div></div>
+    <div class="item"><div class="block" style="width:16px;height:16px"></div><div class="num">16</div></div>
+    <div class="item"><div class="block" style="width:24px;height:24px"></div><div class="num">24</div></div>
+    <div class="item"><div class="block" style="width:32px;height:32px"></div><div class="num">32</div></div>
+    <div class="item"><div class="block" style="width:48px;height:48px"></div><div class="num">48</div></div>
+    <div class="item"><div class="block" style="width:64px;height:64px"></div><div class="num">64</div></div>
+  </div>
+</body>
+</html>

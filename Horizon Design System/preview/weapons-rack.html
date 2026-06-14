@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Weapons rack</title>
+<link rel="stylesheet" href="../tokens.css" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 28px 24px; background: url('../assets/starfox-bg.png') center/cover; min-height: 180px; color: #fff5e8; }
+  .label { font: 500 11px 'JetBrains Mono'; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,245,232,0.65); text-shadow: 0 1px 8px rgba(0,0,0,0.5); margin-bottom: 14px; }
+  .rack { display: flex; gap: 14px; }
+  .rack svg { filter: drop-shadow(0 1px 6px rgba(0,0,0,0.55)); }
+  .active path { stroke: #ffb347; fill: rgba(255,179,71,0.25); }
+  .disabled path { stroke: rgba(255,245,232,0.35); }
+</style>
+</head>
+<body>
+  <div class="label">Weapons</div>
+  <div class="rack">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14.5 7 L14.5 17.5 L16.5 21 L7.5 21 L9.5 17.5 L9.5 7 Z"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+    <svg class="active" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14.5 7 L14.5 17.5 L16.5 21 L7.5 21 L9.5 17.5 L9.5 7 Z"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14.5 7 L14.5 17.5 L16.5 21 L7.5 21 L9.5 17.5 L9.5 7 Z"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+    <svg class="disabled" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14.5 7 L14.5 17.5 L16.5 21 L7.5 21 L9.5 17.5 L9.5 7 Z"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+  </div>
+</body>
+</html>

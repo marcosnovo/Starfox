@@ -270,11 +270,13 @@ class GameScene: SCNScene {
         cam.zFar = 500
         cam.wantsExposureAdaptation = false
 
-        // Cinematic post-processing — this is what makes the sun, engine
-        // glow, lasers and accent lights actually *bloom* against the
-        // sunset instead of reading as flat cutouts.
         // Cinematic post — bloom only on genuine highlights (sun, lasers,
         // explosions, glowing trim) so the grid floor and sky don't wash out.
+        //
+        // Disabled on Simulator: as of iOS 26 the HDR + bloom + colorFringe
+        // combo trips Metal's "cannot create View from Memoryless texture"
+        // validation assertion. Real devices are fine.
+        #if !targetEnvironment(simulator)
         cam.wantsHDR = true
         cam.bloomThreshold = 0.95
         cam.bloomIntensity = 0.75
@@ -287,6 +289,7 @@ class GameScene: SCNScene {
         cam.vignettingPower = 1.5
         cam.colorFringeStrength = 0.22
         cam.colorFringeIntensity = 0.6
+        #endif
 
         cameraNode.camera = cam
         cameraCurrentFOV = cameraBaseFOV
@@ -354,13 +357,16 @@ class GameScene: SCNScene {
         cameraNode.camera?.fieldOfView = cameraCurrentFOV
 
         // Impact grade: a hit briefly desaturates the frame and spikes the
-        // chromatic fringe + vignette, then eases back.
+        // chromatic fringe + vignette, then eases back. Skipped on Simulator,
+        // where touching the HDR post-process pipeline trips a Metal assert.
         gradePulse = max(0, gradePulse - CGFloat(dt) * 2.6)
+        #if !targetEnvironment(simulator)
         if let cam = cameraNode.camera {
             cam.saturation = 1.14 - gradePulse * 0.55
             cam.colorFringeStrength = 0.25 + gradePulse * 0.9
             cam.vignettingIntensity = 0.55 + gradePulse * 0.35
         }
+        #endif
 
         let combat = state.phase == .playing || state.phase == .bossEncounter
         speedLines?.birthRate = (combat && boostInfluence > 0) ? 130 : 0
@@ -602,9 +608,11 @@ class GameScene: SCNScene {
         cameraShakeImpulse = 0
         cameraShakePhase = 0
         gradePulse = 0
+        #if !targetEnvironment(simulator)
         cameraNode.camera?.saturation = 1.14
         cameraNode.camera?.colorFringeStrength = 0.25
         cameraNode.camera?.vignettingIntensity = 0.55
+        #endif
         forwardSpeedCurrent = baseForwardSpeed
 
         lastUpdateTime = 0
@@ -1494,9 +1502,8 @@ extension GameScene: SCNPhysicsContactDelegate {
         let projectile = [a, b].first { $0.name == "projectile" }
         let ship       = [a, b].first { $0.name == "ship" }
         let boss       = [a, b].first { $0.name == "boss" }
-        let solid      = [a, b].first {
-            $0.name == "obstacle" || $0.name == "enemy" || $0.name == "gateFrame"
-        }
+        let solidNames: Set<String> = ["obstacle", "enemy", "gateFrame"]
+        let solid      = [a, b].first { solidNames.contains($0.name ?? "") }
         let gateCenter = [a, b].first { $0.name == "gateCenter" }
         let ring       = [a, b].first { $0.name == "ring" }
         let powerUp    = [a, b].first { $0.name == "powerUp" }

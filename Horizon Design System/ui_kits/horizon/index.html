@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Horizon — UI Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,200;0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../tokens.css" />
+<link rel="stylesheet" href="../../colors_and_type.css" />
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; background: #0a0612; color: #fff5e8;
+    font-family: "Inter Tight", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden;
+  }
+  .stage {
+    position: relative;
+    width: min(96vw, 1280px);
+    aspect-ratio: 16 / 9;
+    background: url('../../assets/starfox-bg.png') center/cover, #0a0612;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.6);
+  }
+  .nav {
+    position: fixed; top: 16px; left: 16px;
+    display: flex; gap: 6px; z-index: 100;
+    font: 500 10px "JetBrains Mono"; letter-spacing: 0.22em; text-transform: uppercase;
+  }
+  .nav button {
+    all: unset; cursor: pointer;
+    padding: 6px 10px; border-radius: 2px;
+    color: rgba(255,245,232,0.55);
+    border: 1px solid rgba(255,245,232,0.12);
+    background: rgba(10,6,18,0.55); backdrop-filter: blur(8px);
+    transition: all 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .nav button:hover { color: #fff5e8; border-color: rgba(255,245,232,0.4); }
+  .nav button.active { color: #0a0612; background: #fff5e8; border-color: #fff5e8; }
+</style>
+</head>
+<body>
+
+<div id="root" class="stage"></div>
+<div class="nav" id="nav"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="Icons.jsx"></script>
+<script type="text/babel" data-presets="react" src="HudMask.jsx"></script>
+<script type="text/babel" src="Buttons.jsx"></script>
+<script type="text/babel" src="Panel.jsx"></script>
+<script type="text/babel" src="BrandMark.jsx"></script>
+<script type="text/babel" src="Reticle.jsx"></script>
+<script type="text/babel" src="ShieldBar.jsx"></script>
+<script type="text/babel" src="WeaponsRack.jsx"></script>
+<script type="text/babel" src="TelemetryStrip.jsx"></script>
+<script type="text/babel" src="MissionCard.jsx"></script>
+<script type="text/babel" src="screens/CoverScreen.jsx"></script>
+<script type="text/babel" src="screens/TitleScreen.jsx"></script>
+<script type="text/babel" src="screens/GameplayScreen.jsx"></script>
+<script type="text/babel" src="screens/PauseScreen.jsx"></script>
+<script type="text/babel" src="screens/MissionSelectScreen.jsx"></script>
+<script type="text/babel" src="screens/ResultsScreen.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+  const SCREENS = ["cover", "title", "missions", "gameplay", "pause", "results"];
+  const LABELS  = { cover: "Cover", title: "Title", missions: "Missions", gameplay: "Gameplay", pause: "Pause", results: "Results" };
+
+  function App() {
+    const [screen, setScreen] = React.useState("cover");
+
+    // expose for nav buttons
+    React.useEffect(() => {
+      const nav = document.getElementById("nav");
+      nav.innerHTML = "";
+      SCREENS.forEach(s => {
+        const b = document.createElement("button");
+        b.textContent = LABELS[s];
+        if (s === screen) b.classList.add("active");
+        b.onclick = () => setScreen(s);
+        nav.appendChild(b);
+      });
+    }, [screen]);
+
+    const go = (s) => () => setScreen(s);
+
+    return (
+      <>
+        {screen === "cover"    && <CoverScreen onContinue={go("title")}/>}
+        {screen === "title"    && <TitleScreen onBegin={go("gameplay")} onMissions={go("missions")} onSettings={go("title")}/>}
+        {screen === "missions" && <MissionSelectScreen onBack={go("title")} onLaunch={go("gameplay")}/>}
+        {screen === "gameplay" && <GameplayScreen onPause={go("pause")}/>}
+        {screen === "pause"    && <PauseScreen onResume={go("gameplay")} onQuit={go("results")}/>}
+        {screen === "results"  && <ResultsScreen onAgain={go("gameplay")} onMissions={go("missions")}/>}
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+</body>
+</html>

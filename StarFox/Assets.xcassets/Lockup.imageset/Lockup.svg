@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="40" viewBox="0 0 180 40" fill="none">
+  
+  <defs>
+    <linearGradient id="lockSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a1a3a"></stop>
+      <stop offset="60%" stop-color="#d2603a"></stop>
+      <stop offset="100%" stop-color="#f59045"></stop>
+    </linearGradient>
+    <clipPath id="lockClip"><rect width="32" height="32" x="4" y="4" rx="8" ry="8"></rect></clipPath>
+  </defs>
+  <g clip-path="url(#lockClip)">
+    <rect width="32" height="32" x="4" y="4" fill="url(#lockSky)"></rect>
+    <circle cx="20" cy="22" r="3.5" fill="#fff5d0"></circle>
+    <path d="M4 28 L10 24 L16 26 L22 23 L28 25 L36 27 L36 36 L4 36 Z" fill="#1a0e1c"></path>
+  </g>
+  <text x="46" y="26" font-family="Inter Tight, system-ui, sans-serif" font-weight="200" font-size="20" fill="#fff5e8" letter-spacing="6">HORIZON</text>
+</svg>
