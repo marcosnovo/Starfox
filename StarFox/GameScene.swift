@@ -68,6 +68,7 @@ class GameScene: SCNScene {
     private var skySystem: SkySystem!
     private var environment: EnvironmentSystem!
     private var particleFX: ParticleFXSystem!
+    private var groundGrid: GroundGridSystem!
 
     // MARK: - Input (written on main thread, consumed on render thread)
 
@@ -159,6 +160,7 @@ class GameScene: SCNScene {
         skySystem = SkySystem(rootNode: rootNode)
         environment = EnvironmentSystem(rootNode: rootNode, minimalMode: cinematicMinimalMode)
         particleFX = ParticleFXSystem(rootNode: rootNode, minimalMode: cinematicMinimalMode)
+        groundGrid = GroundGridSystem(rootNode: rootNode)
 
         skySystem.setupBackground(scene: self)
         skySystem.setupLighting(scene: self)
@@ -176,6 +178,8 @@ class GameScene: SCNScene {
             environment.setupAmbientLife()
         }
         environment.setupParallaxLandscape(shipPosition: shipNode.position)
+        groundGrid.setup()
+        groundGrid.update(shipPosition: shipNode.position)
         fireTimer = fireCooldown
     }
 
@@ -599,6 +603,7 @@ class GameScene: SCNScene {
         particleFX.reset()
         environment.resetAmbientLife()
         environment.resetParallaxLandscape(shipPosition: shipNode.position)
+        groundGrid.reset(shipPosition: shipNode.position)
         skySystem.reset()
     }
 
@@ -1348,6 +1353,7 @@ extension GameScene: SCNSceneRendererDelegate {
             updateLevelComplete(dt: dt)
         }
         environment.updateParallaxLandscape(dt: dt, shipPosition: shipNode.position)
+        groundGrid.update(shipPosition: shipNode.position)
         updateReticles()
 
         publishPhaseIfNeeded()
