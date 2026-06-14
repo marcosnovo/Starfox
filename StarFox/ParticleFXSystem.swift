@@ -243,37 +243,137 @@ class ParticleFXSystem {
 
     // MARK: - Explosions
 
-    func explode(at position: SCNVector3) {
+    func explode(at position: SCNVector3, scale: CGFloat = 1.0) {
+        let container = SCNNode()
+        container.position = position
+        rootNode.addChildNode(container)
+        container.runAction(SCNAction.sequence([
+            SCNAction.wait(duration: 1.4),
+            SCNAction.removeFromParentNode()
+        ]))
+
+        // 1. White-hot flash that blooms instantly then collapses.
+        let flash = SCNNode(geometry: SCNSphere(radius: 0.5 * scale))
+        let flashMat = SCNMaterial()
+        flashMat.lightingModel = .constant
+        flashMat.diffuse.contents = UIColor(hex: "#FFF6D8")
+        flashMat.emission.contents = UIColor(hex: "#FFF6D8")
+        flashMat.writesToDepthBuffer = false
+        flash.geometry?.materials = [flashMat]
+        container.addChildNode(flash)
+        flash.runAction(SCNAction.sequence([
+            SCNAction.group([
+                SCNAction.scale(to: 2.6 * scale, duration: 0.10),
+                SCNAction.fadeOut(duration: 0.14)
+            ]),
+            SCNAction.removeFromParentNode()
+        ]))
+
+        // 2. Expanding shockwave ring, billboarded toward the camera.
+        let ring = SCNNode(geometry: SCNTorus(ringRadius: 0.35 * scale, pipeRadius: 0.06 * scale))
+        let ringMat = SCNMaterial()
+        ringMat.lightingModel = .constant
+        ringMat.diffuse.contents = UIColor(hex: "#FFE0A0")
+        ringMat.emission.contents = UIColor(hex: "#FFE0A0")
+        ringMat.blendMode = .add
+        ringMat.writesToDepthBuffer = false
+        ring.geometry?.materials = [ringMat]
+        ring.constraints = [SCNBillboardConstraint()]
+        container.addChildNode(ring)
+        ring.runAction(SCNAction.sequence([
+            SCNAction.group([
+                SCNAction.scale(to: 5.0 * scale, duration: 0.34),
+                SCNAction.fadeOut(duration: 0.34)
+            ]),
+            SCNAction.removeFromParentNode()
+        ]))
+
+        // 3. Fireball puffs.
         let colors: [UIColor] = [
-            UIColor(hex: "#E8905A"),
-            UIColor(hex: "#C07040"),
-            UIColor(hex: "#F0B070"),
-            UIColor(hex: "#F8D098")
+            UIColor(hex: "#E8905A"), UIColor(hex: "#C07040"),
+            UIColor(hex: "#F0B070"), UIColor(hex: "#F8D098")
         ]
         for color in colors {
-            for _ in 0..<2 {
-                let particle = SCNNode()
-                let g = SCNSphere(radius: CGFloat.random(in: 0.2...0.45))
-                let m = SCNMaterial()
-                m.lightingModel = .constant
-                m.diffuse.contents = color
-                m.emission.contents = color
-                g.materials = [m]
-                particle.geometry = g
-                particle.position = SCNVector3(
-                    position.x + Float.random(in: -0.7...0.7),
-                    position.y + Float.random(in: -0.7...0.7),
-                    position.z + Float.random(in: -0.7...0.7)
-                )
-                rootNode.addChildNode(particle)
-                particle.runAction(SCNAction.sequence([
-                    SCNAction.group([
-                        SCNAction.scale(to: CGFloat.random(in: 2.5...4.0), duration: 0.30),
-                        SCNAction.fadeOut(duration: 0.30)
-                    ]),
-                    SCNAction.removeFromParentNode()
-                ]))
-            }
+            let puff = SCNNode(geometry: SCNSphere(radius: CGFloat.random(in: 0.22...0.5) * scale))
+            let m = SCNMaterial()
+            m.lightingModel = .constant
+            m.diffuse.contents = color
+            m.emission.contents = color
+            m.writesToDepthBuffer = false
+            puff.geometry?.materials = [m]
+            puff.position = SCNVector3(
+                Float.random(in: -0.6...0.6) * Float(scale),
+                Float.random(in: -0.6...0.6) * Float(scale),
+                Float.random(in: -0.6...0.6) * Float(scale)
+            )
+            container.addChildNode(puff)
+            puff.runAction(SCNAction.sequence([
+                SCNAction.group([
+                    SCNAction.scale(to: CGFloat.random(in: 2.4...3.8) * scale, duration: 0.32),
+                    SCNAction.fadeOut(duration: 0.34)
+                ]),
+                SCNAction.removeFromParentNode()
+            ]))
+        }
+
+        // 4. Debris shards flung outward, tumbling.
+        let shardMat = SCNMaterial()
+        shardMat.lightingModel = .constant
+        shardMat.diffuse.contents = UIColor(white: 0.05, alpha: 1)
+        shardMat.emission.contents = UIColor(hex: "#3A2622")
+        let shardCount = 7
+        for _ in 0..<shardCount {
+            let shard = SCNNode(geometry: SCNBox(
+                width: CGFloat.random(in: 0.10...0.26) * scale,
+                height: CGFloat.random(in: 0.10...0.26) * scale,
+                length: CGFloat.random(in: 0.10...0.26) * scale,
+                chamferRadius: 0
+            ))
+            shard.geometry?.materials = [shardMat]
+            let dir = SCNVector3(
+                Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)
+            )
+            container.addChildNode(shard)
+            let dist = Float.random(in: 2.0...4.5) * Float(scale)
+            let move = SCNAction.move(
+                by: SCNVector3(dir.x * dist, dir.y * dist, dir.z * dist),
+                duration: 0.6
+            )
+            move.timingMode = .easeOut
+            let spin = SCNAction.rotateBy(
+                x: CGFloat.random(in: -6...6), y: CGFloat.random(in: -6...6),
+                z: CGFloat.random(in: -6...6), duration: 0.6
+            )
+            shard.runAction(SCNAction.sequence([
+                SCNAction.group([move, spin, SCNAction.fadeOut(duration: 0.6)]),
+                SCNAction.removeFromParentNode()
+            ]))
+        }
+
+        // 5. Bright spark points.
+        let sparkMat = SCNMaterial()
+        sparkMat.lightingModel = .constant
+        sparkMat.diffuse.contents = UIColor(hex: "#FFE6A8")
+        sparkMat.emission.contents = UIColor(hex: "#FFE6A8")
+        sparkMat.blendMode = .add
+        sparkMat.writesToDepthBuffer = false
+        for _ in 0..<10 {
+            let spark = SCNNode(geometry: SCNSphere(radius: 0.05 * scale))
+            spark.geometry?.materials = [sparkMat]
+            let dir = SCNVector3(
+                Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)
+            )
+            let dist = Float.random(in: 3...6) * Float(scale)
+            container.addChildNode(spark)
+            let move = SCNAction.move(
+                by: SCNVector3(dir.x * dist, dir.y * dist, dir.z * dist),
+                duration: 0.4
+            )
+            move.timingMode = .easeOut
+            spark.runAction(SCNAction.sequence([
+                SCNAction.group([move, SCNAction.fadeOut(duration: 0.4)]),
+                SCNAction.removeFromParentNode()
+            ]))
         }
     }
 

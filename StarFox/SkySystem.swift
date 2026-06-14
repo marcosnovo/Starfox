@@ -117,21 +117,63 @@ class SkySystem {
         sunGlowNode?.removeFromParentNode()
         horizonHazeNode?.removeFromParentNode()
 
-        let sunGeom = SCNCylinder(radius: 10.0, height: 0.06)
+        // Outrun-style banded sun: a camera-facing textured disc with the
+        // classic horizontal cuts across its lower half.
+        let sunGeom = SCNPlane(width: 26, height: 26)
         let sunMaterial = SCNMaterial()
         sunMaterial.lightingModel = .constant
-        sunMaterial.diffuse.contents = UIColor(hex: "#FFF2A6")
-        sunMaterial.emission.contents = UIColor(hex: "#FFF2A6")
+        sunMaterial.diffuse.contents = Self.sunDiscImage()
+        sunMaterial.emission.contents = Self.sunDiscImage()
+        sunMaterial.blendMode = .alpha
         sunMaterial.isDoubleSided = true
         sunMaterial.readsFromDepthBuffer = false
         sunMaterial.writesToDepthBuffer = false
         sunGeom.materials = [sunMaterial]
         let sun = SCNNode(geometry: sunGeom)
-        sun.position = SCNVector3(0, 2.5, 128)
-        sun.eulerAngles.x = .pi / 2
+        sun.position = SCNVector3(0, 3.0, 128)
         sun.renderingOrder = -395
         rootNode.addChildNode(sun)
         sunNode = sun
+
+        // Volumetric god-ray spokes behind the sun, rotating slowly.
+        let rayGeom = SCNPlane(width: 96, height: 96)
+        let rayMat = SCNMaterial()
+        rayMat.lightingModel = .constant
+        rayMat.diffuse.contents = Self.sunRaysImage()
+        rayMat.emission.contents = Self.sunRaysImage()
+        rayMat.blendMode = .add
+        rayMat.isDoubleSided = true
+        rayMat.readsFromDepthBuffer = false
+        rayMat.writesToDepthBuffer = false
+        rayGeom.materials = [rayMat]
+        let rays = SCNNode(geometry: rayGeom)
+        rays.position = SCNVector3(0, 0, 1.5)
+        rays.renderingOrder = -398
+        rays.runAction(SCNAction.repeatForever(
+            SCNAction.rotateBy(x: 0, y: 0, z: .pi * 2, duration: 90)
+        ))
+        rays.runAction(SCNAction.repeatForever(SCNAction.sequence([
+            SCNAction.fadeOpacity(to: 0.55, duration: 4),
+            SCNAction.fadeOpacity(to: 0.9, duration: 4)
+        ])))
+        sun.addChildNode(rays)
+
+        // Mirror-glow streaking downward from the horizon — reads as the
+        // sun's reflection on the grid floor.
+        let reflGeom = SCNPlane(width: 22, height: 26)
+        let reflMat = SCNMaterial()
+        reflMat.lightingModel = .constant
+        reflMat.diffuse.contents = Self.sunReflectionImage()
+        reflMat.emission.contents = Self.sunReflectionImage()
+        reflMat.blendMode = .add
+        reflMat.isDoubleSided = true
+        reflMat.readsFromDepthBuffer = false
+        reflMat.writesToDepthBuffer = false
+        reflGeom.materials = [reflMat]
+        let refl = SCNNode(geometry: reflGeom)
+        refl.position = SCNVector3(0, -17, 0.5)
+        refl.renderingOrder = -397
+        sun.addChildNode(refl)
 
         let glowGeom = SCNCylinder(radius: 30.0, height: 0.04)
         let glowMaterial = SCNMaterial()
@@ -168,6 +210,95 @@ class SkySystem {
         haze.renderingOrder = -397
         rootNode.addChildNode(haze)
         horizonHazeNode = haze
+    }
+
+    // MARK: - Procedural sun art
+
+    private static func sunDiscImage() -> UIImage {
+        let s = CGSize(width: 320, height: 320)
+        return UIGraphicsImageRenderer(size: s).image { ctx in
+            let cg = ctx.cgContext
+            cg.clear(CGRect(origin: .zero, size: s))
+            let center = CGPoint(x: s.width / 2, y: s.height / 2)
+            let radius = s.width * 0.46
+            let space = CGColorSpaceCreateDeviceRGB()
+            let colors = [
+                UIColor(hex: "#FFF6C8").cgColor,
+                UIColor(hex: "#FFE49A").cgColor,
+                UIColor(hex: "#FFC56A").cgColor,
+                UIColor(hex: "#F58A4E").withAlphaComponent(0.9).cgColor,
+                UIColor(hex: "#F58A4E").withAlphaComponent(0.0).cgColor
+            ] as CFArray
+            let locs: [CGFloat] = [0, 0.45, 0.72, 0.94, 1.0]
+            if let g = CGGradient(colorsSpace: space, colors: colors, locations: locs) {
+                cg.drawRadialGradient(g, startCenter: center, startRadius: 0,
+                                      endCenter: center, endRadius: radius, options: [])
+            }
+            // Horizontal cuts across the lower half — thicker toward the
+            // bottom, the signature retro sun look.
+            cg.setBlendMode(.clear)
+            cg.setFillColor(UIColor.clear.cgColor)
+            var y = center.y + radius * 0.16
+            var thickness: CGFloat = 4
+            while y < s.height {
+                cg.fill(CGRect(x: 0, y: y, width: s.width, height: thickness))
+                y += thickness + max(6, radius * 0.10 - thickness * 0.5)
+                thickness += 3
+            }
+        }
+    }
+
+    private static func sunRaysImage() -> UIImage {
+        let s = CGSize(width: 512, height: 512)
+        return UIGraphicsImageRenderer(size: s).image { ctx in
+            let cg = ctx.cgContext
+            cg.clear(CGRect(origin: .zero, size: s))
+            let center = CGPoint(x: s.width / 2, y: s.height / 2)
+            let spokes = 18
+            cg.translateBy(x: center.x, y: center.y)
+            for i in 0..<spokes {
+                let angle = CGFloat(i) * (.pi * 2) / CGFloat(spokes)
+                cg.saveGState()
+                cg.rotate(by: angle)
+                let path = CGMutablePath()
+                path.move(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: -10, y: -s.width * 0.5))
+                path.addLine(to: CGPoint(x: 10, y: -s.width * 0.5))
+                path.closeSubpath()
+                cg.addPath(path)
+                cg.setFillColor(UIColor(hex: "#FFE6A8").withAlphaComponent(0.10).cgColor)
+                cg.fillPath()
+                cg.restoreGState()
+            }
+        }
+    }
+
+    private static func sunReflectionImage() -> UIImage {
+        let s = CGSize(width: 256, height: 320)
+        return UIGraphicsImageRenderer(size: s).image { ctx in
+            let cg = ctx.cgContext
+            cg.clear(CGRect(origin: .zero, size: s))
+            let space = CGColorSpaceCreateDeviceRGB()
+            // Vertical fade: warm at the top (horizon), gone at the bottom.
+            let colors = [
+                UIColor(hex: "#FFC56A").withAlphaComponent(0.5).cgColor,
+                UIColor(hex: "#F58A4E").withAlphaComponent(0.18).cgColor,
+                UIColor(hex: "#F58A4E").withAlphaComponent(0.0).cgColor
+            ] as CFArray
+            if let g = CGGradient(colorsSpace: space, colors: colors, locations: [0, 0.5, 1]) {
+                cg.drawLinearGradient(g, start: CGPoint(x: 0, y: 0),
+                                      end: CGPoint(x: 0, y: s.height), options: [])
+            }
+            // Horizontal shimmer cuts (mirror of the sun bands).
+            cg.setBlendMode(.clear)
+            var y: CGFloat = 10
+            var thickness: CGFloat = 7
+            while y < s.height {
+                cg.fill(CGRect(x: 0, y: y, width: s.width, height: thickness))
+                y += thickness + 9
+                thickness = max(3, thickness - 0.6)
+            }
+        }
     }
 
     func update(dt: TimeInterval, shipPosition: SCNVector3, weatherPreset: WeatherPreset) {
