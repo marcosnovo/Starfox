@@ -52,12 +52,27 @@ class ShipNode: SCNNode {
 
     // MARK: - Materials
 
+    /// Dark gunmetal hull, physically lit so the warm sun-rim and cool
+    /// under-fill model its form — the difference between a 3D craft and a
+    /// flat cutout.
     private static func silhouetteMaterial() -> SCNMaterial {
         let material = SCNMaterial()
-        material.lightingModel = .constant
-        material.diffuse.contents = UIColor.black
-        material.emission.contents = UIColor.black
-        material.specular.contents = UIColor.black
+        material.lightingModel = .physicallyBased
+        material.diffuse.contents = UIColor(red: 0.13, green: 0.15, blue: 0.20, alpha: 1)
+        material.metalness.contents = 0.55
+        material.roughness.contents = 0.40
+        material.isDoubleSided = true
+        return material
+    }
+
+    /// Lighter brushed-metal panels for the upper surfaces, catching more
+    /// of the sunset so the silhouette has tonal variation.
+    private static func panelMaterial() -> SCNMaterial {
+        let material = SCNMaterial()
+        material.lightingModel = .physicallyBased
+        material.diffuse.contents = UIColor(red: 0.24, green: 0.27, blue: 0.33, alpha: 1)
+        material.metalness.contents = 0.45
+        material.roughness.contents = 0.55
         material.isDoubleSided = true
         return material
     }
@@ -139,6 +154,7 @@ class ShipNode: SCNNode {
         ship.addChildNode(frame)
 
         let black = silhouetteMaterial()
+        let panel = panelMaterial()
         let mint = mintAccentMaterial()
 
         // Fuselage — elongated hexagon (top view), extruded for thickness.
@@ -169,7 +185,7 @@ class ShipNode: SCNNode {
 
         // Canopy — small raised wedge behind the nose.
         let canopyGeom = SCNPyramid(width: 0.34, height: 0.24, length: 0.85)
-        canopyGeom.materials = [black]
+        canopyGeom.materials = [panel]
         let canopy = SCNNode(geometry: canopyGeom)
         canopy.position = SCNVector3(0, 0.13, 0.85)
         frame.addChildNode(canopy)
@@ -234,7 +250,26 @@ class ShipNode: SCNNode {
             cannon.position = SCNVector3(side * 1.55, -0.18, 0.95)
             frame.addChildNode(cannon)
 
-            let parts = [wing, fin, strip, cannon]
+            // Navigation light — red to port, green to starboard, like a
+            // real aircraft. Pulses softly.
+            let navColor = side < 0
+                ? UIColor(red: 1.0, green: 0.22, blue: 0.22, alpha: 1)
+                : UIColor(red: 0.30, green: 1.0, blue: 0.40, alpha: 1)
+            let navMat = SCNMaterial()
+            navMat.lightingModel = .constant
+            navMat.diffuse.contents = navColor
+            navMat.emission.contents = navColor
+            let navGeom = SCNSphere(radius: 0.06)
+            navGeom.materials = [navMat]
+            let nav = SCNNode(geometry: navGeom)
+            nav.position = SCNVector3(side * 2.48, -0.50, 0.95)
+            nav.runAction(SCNAction.repeatForever(SCNAction.sequence([
+                SCNAction.fadeOpacity(to: 0.35, duration: 0.7),
+                SCNAction.fadeOpacity(to: 1.0, duration: 0.7)
+            ])))
+            frame.addChildNode(nav)
+
+            let parts = [wing, fin, strip, cannon, nav]
             if side < 0 {
                 ship.leftWingParts = parts
             } else {
@@ -273,27 +308,6 @@ class ShipNode: SCNNode {
             nozzle.position = SCNVector3(x, -0.02, -1.42)
             frame.addChildNode(nozzle)
         }
-
-        // Faint rim shell so the silhouette reads against dark skies.
-        let rimPath = UIBezierPath()
-        rimPath.move(to: CGPoint(x: 0, y: 2.40))
-        rimPath.addLine(to: CGPoint(x: 0.42, y: -0.25))
-        rimPath.addLine(to: CGPoint(x: 0.26, y: -1.35))
-        rimPath.addLine(to: CGPoint(x: -0.26, y: -1.35))
-        rimPath.addLine(to: CGPoint(x: -0.42, y: -0.25))
-        rimPath.close()
-        let rimGeom = SCNShape(path: rimPath, extrusionDepth: 0.30)
-        let rimMaterial = SCNMaterial()
-        rimMaterial.lightingModel = .constant
-        rimMaterial.diffuse.contents = UIColor(red: 0.05, green: 0.05, blue: 0.05, alpha: 1)
-        rimMaterial.emission.contents = UIColor(red: 0.165, green: 0.137, blue: 0.157, alpha: 1)
-        rimMaterial.transparency = 0.18
-        rimMaterial.isDoubleSided = true
-        rimGeom.materials = [rimMaterial]
-        let rim = SCNNode(geometry: rimGeom)
-        rim.eulerAngles.x = .pi / 2
-        rim.position = SCNVector3(0, 0, 0)
-        frame.addChildNode(rim)
 
         // Engine cores (glowing spheres in the nozzles).
         let engineCoreGeom = SCNSphere(radius: 0.09)

@@ -273,18 +273,20 @@ class GameScene: SCNScene {
         // Cinematic post-processing — this is what makes the sun, engine
         // glow, lasers and accent lights actually *bloom* against the
         // sunset instead of reading as flat cutouts.
+        // Cinematic post — bloom only on genuine highlights (sun, lasers,
+        // explosions, glowing trim) so the grid floor and sky don't wash out.
         cam.wantsHDR = true
-        cam.bloomThreshold = 0.78
-        cam.bloomIntensity = 1.35
-        cam.bloomBlurRadius = 14.0
+        cam.bloomThreshold = 0.95
+        cam.bloomIntensity = 0.75
+        cam.bloomBlurRadius = 16.0
         cam.bloomIterationCount = 3
-        cam.exposureOffset = 0.10
-        cam.saturation = 1.18
-        cam.contrast = 0.08
-        cam.vignettingIntensity = 0.55
-        cam.vignettingPower = 1.4
-        cam.colorFringeStrength = 0.25
-        cam.colorFringeIntensity = 0.7
+        cam.exposureOffset = 0.0
+        cam.saturation = 1.14
+        cam.contrast = 0.10
+        cam.vignettingIntensity = 0.6
+        cam.vignettingPower = 1.5
+        cam.colorFringeStrength = 0.22
+        cam.colorFringeIntensity = 0.6
 
         cameraNode.camera = cam
         cameraCurrentFOV = cameraBaseFOV
@@ -355,7 +357,7 @@ class GameScene: SCNScene {
         // chromatic fringe + vignette, then eases back.
         gradePulse = max(0, gradePulse - CGFloat(dt) * 2.6)
         if let cam = cameraNode.camera {
-            cam.saturation = 1.18 - gradePulse * 0.55
+            cam.saturation = 1.14 - gradePulse * 0.55
             cam.colorFringeStrength = 0.25 + gradePulse * 0.9
             cam.vignettingIntensity = 0.55 + gradePulse * 0.35
         }
@@ -600,7 +602,7 @@ class GameScene: SCNScene {
         cameraShakeImpulse = 0
         cameraShakePhase = 0
         gradePulse = 0
-        cameraNode.camera?.saturation = 1.18
+        cameraNode.camera?.saturation = 1.14
         cameraNode.camera?.colorFringeStrength = 0.25
         cameraNode.camera?.vignettingIntensity = 0.55
         forwardSpeedCurrent = baseForwardSpeed

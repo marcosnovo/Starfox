@@ -55,9 +55,10 @@ class BossNode: SCNNode {
 
     private static func silhouetteMaterial() -> SCNMaterial {
         let material = SCNMaterial()
-        material.lightingModel = .constant
-        material.diffuse.contents = UIColor(white: 0.05, alpha: 1)
-        material.emission.contents = UIColor(white: 0.02, alpha: 1)
+        material.lightingModel = .physicallyBased
+        material.diffuse.contents = UIColor(red: 0.12, green: 0.13, blue: 0.16, alpha: 1)
+        material.metalness.contents = 0.7
+        material.roughness.contents = 0.38
         material.isDoubleSided = true
         return material
     }

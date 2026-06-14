@@ -16,7 +16,6 @@ import UIKit
 final class GroundGridSystem {
     private let rootNode: SCNNode
     private var gridNode: SCNNode?
-    private var glowNode: SCNNode?
     private var material: SCNMaterial?
 
     /// World height of the floor — matches the base of the pillars so they
@@ -33,7 +32,6 @@ final class GroundGridSystem {
 
     func setup() {
         gridNode?.removeFromParentNode()
-        glowNode?.removeFromParentNode()
 
         let plane = SCNPlane(width: planeWidth, height: planeLength)
         let mat = SCNMaterial()
@@ -47,7 +45,10 @@ final class GroundGridSystem {
         mat.emission.contents = mat.diffuse.contents
         mat.emission.wrapS = .repeat
         mat.emission.wrapT = .repeat
-        mat.blendMode = .add
+        // Alpha (not additive): the cyan lines overlay the warm ground as
+        // crisp neon instead of compounding into a blown-out smear.
+        mat.blendMode = .alpha
+        mat.transparency = 0.85
         mat.isDoubleSided = true
         mat.writesToDepthBuffer = false
         mat.readsFromDepthBuffer = false
@@ -63,31 +64,11 @@ final class GroundGridSystem {
         rootNode.addChildNode(node)
         gridNode = node
 
-        // Soft warm wash just above the grid so the floor reads as a glowing
-        // surface, not just lines floating in space.
-        let glowPlane = SCNPlane(width: planeWidth, height: planeLength)
-        let glowMat = SCNMaterial()
-        glowMat.lightingModel = .constant
-        glowMat.diffuse.contents = Self.glowImage()
-        glowMat.blendMode = .add
-        glowMat.isDoubleSided = true
-        glowMat.writesToDepthBuffer = false
-        glowMat.readsFromDepthBuffer = false
-        glowPlane.materials = [glowMat]
-        let glow = SCNNode(geometry: glowPlane)
-        glow.eulerAngles.x = -.pi / 2
-        glow.position = SCNVector3(0, Self.groundY + 0.05, 0)
-        glow.renderingOrder = -121
-        glow.castsShadow = false
-        rootNode.addChildNode(glow)
-        glowNode = glow
-
         applyTransform(shipZ: 0)
     }
 
     func update(shipPosition: SCNVector3) {
         gridNode?.position = SCNVector3(shipPosition.x * 0.4, Self.groundY, shipPosition.z)
-        glowNode?.position = SCNVector3(shipPosition.x * 0.4, Self.groundY + 0.05, shipPosition.z)
         applyTransform(shipZ: shipPosition.z)
     }
 
@@ -113,8 +94,9 @@ final class GroundGridSystem {
 
     // MARK: - Procedural textures
 
-    /// One grid cell: transparent fill with a bright line on two edges, so
-    /// repeating it builds a continuous glowing lattice.
+    /// One grid cell: transparent fill with a neon line on two edges, so
+    /// repeating it builds a continuous lattice. Cyan reads as crisp neon
+    /// against the warm sunset (the classic complementary synthwave combo).
     private static func gridImage() -> UIImage {
         let size = CGSize(width: 128, height: 128)
         let renderer = UIGraphicsImageRenderer(size: size)
@@ -122,40 +104,15 @@ final class GroundGridSystem {
             let cg = ctx.cgContext
             cg.clear(CGRect(origin: .zero, size: size))
 
-            let line = UIColor(red: 1.0, green: 0.86, blue: 0.66, alpha: 0.9)
-            // Bright thin core lines on the left and bottom edges.
+            let line = UIColor(red: 0.55, green: 0.95, blue: 1.0, alpha: 0.95)
             cg.setFillColor(line.cgColor)
-            cg.fill(CGRect(x: 0, y: 0, width: 3, height: size.height))
-            cg.fill(CGRect(x: 0, y: 0, width: size.width, height: 3))
+            cg.fill(CGRect(x: 0, y: 0, width: 2, height: size.height))
+            cg.fill(CGRect(x: 0, y: 0, width: size.width, height: 2))
             // Faint glow halo alongside the core lines.
-            let halo = UIColor(red: 1.0, green: 0.78, blue: 0.55, alpha: 0.28)
+            let halo = UIColor(red: 0.40, green: 0.80, blue: 0.95, alpha: 0.22)
             cg.setFillColor(halo.cgColor)
-            cg.fill(CGRect(x: 3, y: 0, width: 5, height: size.height))
-            cg.fill(CGRect(x: 0, y: 3, width: size.width, height: 5))
-        }
-    }
-
-    /// Vertical falloff: warm near the camera, transparent toward the
-    /// horizon, giving the floor a glowing wash without a hard far edge.
-    private static func glowImage() -> UIImage {
-        let size = CGSize(width: 8, height: 256)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { ctx in
-            let cg = ctx.cgContext
-            let space = CGColorSpaceCreateDeviceRGB()
-            let colors = [
-                UIColor(red: 1.0, green: 0.55, blue: 0.32, alpha: 0.0).cgColor,
-                UIColor(red: 1.0, green: 0.58, blue: 0.34, alpha: 0.16).cgColor,
-                UIColor(red: 1.0, green: 0.66, blue: 0.42, alpha: 0.30).cgColor
-            ] as CFArray
-            let locations: [CGFloat] = [0.0, 0.55, 1.0]
-            guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: locations) else { return }
-            cg.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: 0, y: size.height),
-                options: []
-            )
+            cg.fill(CGRect(x: 2, y: 0, width: 4, height: size.height))
+            cg.fill(CGRect(x: 0, y: 2, width: size.width, height: 4))
         }
     }
 }

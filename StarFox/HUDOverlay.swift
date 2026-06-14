@@ -10,11 +10,11 @@
 import SwiftUI
 
 private extension Color {
-    static let hudMint = Color(red: 0.88, green: 0.84, blue: 0.76)
-    static let hudMintDim = Color(red: 0.68, green: 0.74, blue: 0.72)
-    static let hudOrange = Color(red: 0.95, green: 0.58, blue: 0.33)
-    static let hudLine = Color(red: 0.88, green: 0.84, blue: 0.76).opacity(0.25)
-    static let hudPanel = Color(red: 0.08, green: 0.09, blue: 0.11).opacity(0.45)
+    static let hudMint = Color(red: 0.92, green: 0.99, blue: 0.96)
+    static let hudMintDim = Color(red: 0.62, green: 0.78, blue: 0.78)
+    static let hudOrange = Color(red: 1.0, green: 0.62, blue: 0.34)
+    static let hudLine = Color(red: 0.55, green: 0.95, blue: 1.0).opacity(0.35)
+    static let hudPanel = Color(red: 0.04, green: 0.05, blue: 0.08).opacity(0.55)
 }
 
 private struct HUDLabel: View {
@@ -168,9 +168,10 @@ struct HUDOverlay: View {
     @ViewBuilder
     private var radioPanel: some View {
         if let radio = state.radio {
-            // Centered near the top, between the corner panels and clear of
+            // Lower third, centered: clear of the top corner panels and of
             // the bottom button clusters.
             VStack {
+                Spacer()
                 HStack(spacing: 10) {
                     Text(radio.callsign)
                         .font(.system(size: 11, weight: .heavy, design: .monospaced))
@@ -186,8 +187,7 @@ struct HUDOverlay: View {
                 .padding(.vertical, 8)
                 .background(Color.hudPanel)
                 .overlay(Rectangle().stroke(Color.hudLine, lineWidth: 1))
-                .padding(.top, 52)
-                Spacer()
+                .padding(.bottom, 118)
             }
             .transition(.opacity)
             .animation(.easeInOut(duration: 0.2), value: state.radio)

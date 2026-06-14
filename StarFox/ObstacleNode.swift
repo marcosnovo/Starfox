@@ -7,6 +7,7 @@
 //
 
 import SceneKit
+import UIKit
 
 enum ObstacleKind {
     case asteroid       // tumbling low-poly rock, shoot or dodge
@@ -77,6 +78,29 @@ class ObstacleNode: SCNNode {
     private static let sharedMintGlow = glowMaterial(mintAccent, emission: mintAccent.withAlphaComponent(0.6))
     private static let sharedGoldGlow = glowMaterial(goldRing, emission: goldRing.withAlphaComponent(0.5))
 
+    /// Lit gunmetal for enemy hulls — reacts to the scene's sun-rim/cool-fill
+    /// rig so fighters read as 3D craft, not flat boxes.
+    private static let sharedHullMetal: SCNMaterial = {
+        let m = SCNMaterial()
+        m.lightingModel = .physicallyBased
+        m.diffuse.contents = UIColor(red: 0.14, green: 0.15, blue: 0.18, alpha: 1)
+        m.metalness.contents = 0.55
+        m.roughness.contents = 0.45
+        m.isDoubleSided = true
+        return m
+    }()
+
+    /// Lit rock for asteroids — dark stone that catches the sunset.
+    private static let sharedRock: SCNMaterial = {
+        let m = SCNMaterial()
+        m.lightingModel = .physicallyBased
+        m.diffuse.contents = UIColor(red: 0.16, green: 0.13, blue: 0.14, alpha: 1)
+        m.metalness.contents = 0.0
+        m.roughness.contents = 0.9
+        m.isDoubleSided = true
+        return m
+    }()
+
     // MARK: - Factory
 
     static func create(kind: ObstacleKind, at position: SCNVector3) -> ObstacleNode {
@@ -129,8 +153,8 @@ class ObstacleNode: SCNNode {
         node.health = 2
         let radius = CGFloat.random(in: 1.0...1.9)
         let geom = SCNSphere(radius: radius)
-        geom.segmentCount = 5
-        geom.materials = [sharedSilhouette]
+        geom.segmentCount = 4
+        geom.materials = [sharedRock]
         node.geometry = geom
 
         // Orange ember veins.
@@ -263,17 +287,27 @@ class ObstacleNode: SCNNode {
         let proto = SCNNode()
 
         // Angular dart body.
-        let bodyGeom = SCNBox(width: 0.8, height: 0.4, length: 1.5, chamferRadius: 0.02)
-        bodyGeom.materials = [sharedSilhouette]
+        let bodyGeom = SCNBox(width: 0.8, height: 0.4, length: 1.5, chamferRadius: 0.08)
+        bodyGeom.materials = [sharedHullMetal]
         let body = SCNNode(geometry: bodyGeom)
         proto.addChildNode(body)
 
-        // Swept wings.
-        let wingGeom = SCNBox(width: 3.4, height: 0.09, length: 0.9, chamferRadius: 0)
-        wingGeom.materials = [sharedSilhouette]
-        let wings = SCNNode(geometry: wingGeom)
-        wings.position = SCNVector3(0, 0, 0.25)
-        proto.addChildNode(wings)
+        // Swept-back delta wings (drawn as a flat extruded shape so they
+        // taper, not a plain slab).
+        for wSide: CGFloat in [-1, 1] {
+            let wingPath = UIBezierPath()
+            wingPath.move(to: CGPoint(x: 0, y: 0.6))
+            wingPath.addLine(to: CGPoint(x: wSide * 1.7, y: -0.5))
+            wingPath.addLine(to: CGPoint(x: wSide * 1.5, y: -0.7))
+            wingPath.addLine(to: CGPoint(x: 0, y: -0.2))
+            wingPath.close()
+            let wingGeom = SCNShape(path: wingPath, extrusionDepth: 0.08)
+            wingGeom.materials = [sharedHullMetal]
+            let wing = SCNNode(geometry: wingGeom)
+            wing.eulerAngles.x = .pi / 2
+            wing.position = SCNVector3(0, 0, 0.2)
+            proto.addChildNode(wing)
+        }
 
         // Orange nose spike facing the player (-Z, they fly toward us).
         let noseGeom = SCNCone(topRadius: 0, bottomRadius: 0.22, height: 0.8)
