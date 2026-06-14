@@ -111,6 +111,7 @@ class GameScene: SCNScene {
     private var cameraBaseFOV: CGFloat = 54
     private var cameraCurrentFOV: CGFloat = 54
     private var cameraShakeImpulse: CGFloat = 0
+    private var gradePulse: CGFloat = 0
     private var cameraShakePhase: TimeInterval = 0
     private var enginePowerCurrent: CGFloat = 0.68
     private var forwardSpeedCurrent: Float = 16
@@ -351,9 +352,19 @@ class GameScene: SCNScene {
         let rollInfluence = CGFloat(min(1.0, abs(shipNode.airframe.eulerAngles.z)))
         let boostInfluence: CGFloat = boostHeld && state.boostGauge > 0 ? 1 : 0
         let brakeInfluence: CGFloat = brakeHeld ? 1 : 0
-        let targetFOV = cameraBaseFOV + (rollInfluence * 2.5) + (boostInfluence * 6.0) - (brakeInfluence * 3.0)
+        let targetFOV = cameraBaseFOV + (rollInfluence * 2.5) + (boostInfluence * 6.0)
+            - (brakeInfluence * 3.0) + (gradePulse * 4.0)
         cameraCurrentFOV += (targetFOV - cameraCurrentFOV) * 0.07
         cameraNode.camera?.fieldOfView = cameraCurrentFOV
+
+        // Impact grade: a hit briefly desaturates the frame and spikes the
+        // chromatic fringe + vignette, then eases back.
+        gradePulse = max(0, gradePulse - CGFloat(dt) * 2.6)
+        if let cam = cameraNode.camera {
+            cam.saturation = 1.18 - gradePulse * 0.55
+            cam.colorFringeStrength = 0.25 + gradePulse * 0.9
+            cam.vignettingIntensity = 0.55 + gradePulse * 0.35
+        }
 
         let combat = state.phase == .playing || state.phase == .bossEncounter
         speedLines?.birthRate = (combat && boostInfluence > 0) ? 130 : 0
@@ -594,6 +605,10 @@ class GameScene: SCNScene {
         cameraNode.camera?.fieldOfView = cameraCurrentFOV
         cameraShakeImpulse = 0
         cameraShakePhase = 0
+        gradePulse = 0
+        cameraNode.camera?.saturation = 1.18
+        cameraNode.camera?.colorFringeStrength = 0.25
+        cameraNode.camera?.vignettingIntensity = 0.55
         forwardSpeedCurrent = baseForwardSpeed
 
         lastUpdateTime = 0
@@ -957,6 +972,7 @@ class GameScene: SCNScene {
         guard state.bombs > 0 else { return }
         state.bombs -= 1
         cameraShakeImpulse = 0.05
+        gradePulse = 0.7
         SoundSystem.shared.play(.bomb, volume: 1.0)
         Haptics.shared.play(.bomb)
 
@@ -1041,15 +1057,16 @@ class GameScene: SCNScene {
 
     private func bossDefeated() {
         guard let boss = bossNode else { return }
-        particleFX.explode(at: boss.position)
-        let scatter: [SCNVector3] = (0..<4).map { _ in
+        particleFX.explode(at: boss.position, scale: 2.6)
+        let scatter: [SCNVector3] = (0..<5).map { _ in
             SCNVector3(
                 boss.position.x + Float.random(in: -3...3),
                 boss.position.y + Float.random(in: -3...3),
                 boss.position.z + Float.random(in: -2...2)
             )
         }
-        for point in scatter { particleFX.explode(at: point) }
+        for point in scatter { particleFX.explode(at: point, scale: 1.6) }
+        gradePulse = 1.0
 
         boss.removeFromParentNode()
         bossNode = nil
@@ -1305,6 +1322,7 @@ class GameScene: SCNScene {
         Haptics.shared.play(.damage)
 
         cameraShakeImpulse = min(0.05, cameraShakeImpulse + 0.04)
+        gradePulse = 1.0
         state.shield -= 1
 
         if state.shield <= 2 && state.shield > 0 && !radioLowShieldSent {

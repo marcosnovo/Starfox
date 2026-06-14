@@ -386,6 +386,30 @@ class ShipNode: SCNNode {
             frame.addChildNode(emitter)
         }
 
+        // Wingtip vapor contrails — thin mint streaks that sell the speed.
+        for x: Float in [-2.45, 2.45] {
+            let vapor = SCNParticleSystem()
+            vapor.birthRate = 60
+            vapor.particleLifeSpan = 0.5
+            vapor.particleLifeSpanVariation = 0.12
+            vapor.particleSize = 0.07
+            vapor.particleSizeVariation = 0.02
+            vapor.particleColor = UIColor(red: 0.7, green: 1.0, blue: 0.95, alpha: 0.22)
+            vapor.particleImage = trailImage
+            vapor.blendMode = .additive
+            vapor.emittingDirection = SCNVector3(0, 0, -1)
+            vapor.particleVelocity = 3
+            vapor.particleVelocityVariation = 0.5
+            vapor.spreadingAngle = 1.5
+            vapor.stretchFactor = 2.2
+            vapor.isAffectedByGravity = false
+            vapor.isLightingEnabled = false
+            let vNode = SCNNode()
+            vNode.position = SCNVector3(x, -0.45, 0.4)
+            vNode.addParticleSystem(vapor)
+            frame.addChildNode(vNode)
+        }
+
         ship.setEnginePower(0.65)
 
         for child in frame.childNodes where child.geometry != nil {
