@@ -159,16 +159,40 @@ class ObstacleNode: SCNNode {
 
     private static func buildPillar(_ node: ObstacleNode) {
         node.health = 3
-        let height = CGFloat.random(in: 7...11)
-        let geom = SCNBox(width: 1.7, height: height, length: 1.7, chamferRadius: 0.05)
+        let width: CGFloat = CGFloat.random(in: 1.5...2.1)
+        let height = CGFloat.random(in: 7...12)
+        let geom = SCNBox(width: width, height: height, length: width, chamferRadius: 0.08)
         geom.materials = [sharedSilhouette]
         node.geometry = geom
+
+        // A stepped cap gives the tower a built silhouette instead of a
+        // plain bar against the sky.
+        let capGeom = SCNBox(width: width * 1.25, height: 0.5, length: width * 1.25, chamferRadius: 0.04)
+        capGeom.materials = [sharedSilhouette]
+        let cap = SCNNode(geometry: capGeom)
+        cap.position = SCNVector3(0, Float(height) / 2 + 0.25, 0)
+        node.addChildNode(cap)
+
+        // Rows of lit "windows" climbing two faces — reads as a structure
+        // and the bloom makes them glow.
+        let rows = Int(height / 1.4)
+        for r in 0..<rows {
+            let y = Float(-height / 2) + 1.0 + Float(r) * 1.4
+            for face: Float in [1, -1] {
+                let winGeom = SCNBox(width: width * 0.5, height: 0.18, length: 0.06, chamferRadius: 0)
+                winGeom.materials = [r % 3 == 0 ? sharedMintGlow : sharedOrangeGlow]
+                let win = SCNNode(geometry: winGeom)
+                win.position = SCNVector3(0, y, face * Float(width / 2 + 0.01))
+                win.opacity = CGFloat.random(in: 0.45...1.0)
+                node.addChildNode(win)
+            }
+        }
 
         // Beacon light on top.
         let beaconGeom = SCNSphere(radius: 0.18)
         beaconGeom.materials = [sharedOrangeGlow]
         let beacon = SCNNode(geometry: beaconGeom)
-        beacon.position = SCNVector3(0, Float(height) / 2 + 0.2, 0)
+        beacon.position = SCNVector3(0, Float(height) / 2 + 0.6, 0)
         node.addChildNode(beacon)
         beacon.runAction(SCNAction.repeatForever(SCNAction.sequence([
             SCNAction.fadeOpacity(to: 0.25, duration: 0.5),
@@ -177,7 +201,7 @@ class ObstacleNode: SCNNode {
 
         attachBody(
             node,
-            geometry: SCNBox(width: 1.7, height: height, length: 1.7, chamferRadius: 0),
+            geometry: SCNBox(width: width, height: height, length: width, chamferRadius: 0),
             category: PhysicsCategory.obstacle,
             name: "obstacle"
         )

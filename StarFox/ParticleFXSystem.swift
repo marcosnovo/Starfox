@@ -86,10 +86,12 @@ class ParticleFXSystem {
         dustSystem = nil
         dustNode = nil
 
+        // Fewer, subtler streaks — the scrolling ground grid now carries the
+        // speed read, so these are just a light atmospheric accent (and with
+        // bloom on, too many bright streaks become visual noise).
         let biases: [(x: Float, y: Float)] = [
-            (-1.0, -0.2), (1.0, -0.2),
-            (-0.8,  0.4), (0.8,  0.4),
-            (-0.6, -0.5), (0.6, -0.5)
+            (-1.0, 0.3), (1.0, 0.3),
+            (-0.7, -0.3), (0.7, -0.3)
         ]
         for bias in biases {
             let ps = makeSpeedLinesSystem(xBias: bias.x, yBias: bias.y)
@@ -323,24 +325,24 @@ class ParticleFXSystem {
 
     private func makeSpeedLinesSystem(xBias: Float, yBias: Float) -> SCNParticleSystem {
         let ps = SCNParticleSystem()
-        ps.birthRate = 2.5
+        ps.birthRate = 1.3
         ps.loops = true
         ps.emissionDuration = 0
         ps.birthLocation = .volume
-        ps.emitterShape = SCNBox(width: 3.0, height: 5.0, length: 1.2, chamferRadius: 0)
-        ps.particleLifeSpan = 0.42
+        ps.emitterShape = SCNBox(width: 3.0, height: 4.0, length: 1.2, chamferRadius: 0)
+        ps.particleLifeSpan = 0.36
         ps.particleLifeSpanVariation = 0.10
-        ps.particleSize = 0.018
-        ps.particleSizeVariation = 0.006
-        ps.particleColor = UIColor(white: 1.0, alpha: 0.20)
-        ps.particleColorVariation = SCNVector4(0, 0, 0, 0.08)
+        ps.particleSize = 0.014
+        ps.particleSizeVariation = 0.005
+        ps.particleColor = UIColor(white: 1.0, alpha: 0.10)
+        ps.particleColorVariation = SCNVector4(0, 0, 0, 0.04)
         ps.blendMode = .alpha
         ps.emittingDirection = SCNVector3(xBias * 0.10, yBias * 0.06, -1)
-        ps.particleVelocity = 38
-        ps.particleVelocityVariation = 8
-        ps.spreadingAngle = 4
-        ps.stretchFactor = 4.5
-        ps.acceleration = SCNVector3(xBias * 1.2, yBias * 0.4, -4.0)
+        ps.particleVelocity = 34
+        ps.particleVelocityVariation = 7
+        ps.spreadingAngle = 3
+        ps.stretchFactor = 3.0
+        ps.acceleration = SCNVector3(xBias * 1.0, yBias * 0.3, -3.5)
         ps.isLightingEnabled = false
         ps.isAffectedByGravity = false
         return ps
