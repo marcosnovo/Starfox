@@ -512,7 +512,7 @@ class EnvironmentSystem {
         let material = SCNMaterial()
         material.lightingModel = .constant
         material.diffuse.contents = color
-        material.emission.contents = color
+        // No emission — silhouettes read pure flat against the sky.
         material.isDoubleSided = true
         shape.materials = [material]
         return SCNNode(geometry: shape)
@@ -538,7 +538,7 @@ class EnvironmentSystem {
         let material = SCNMaterial()
         material.lightingModel = .constant
         material.diffuse.contents = color
-        material.emission.contents = color
+        // No emission — silhouettes read pure flat against the sky.
         material.isDoubleSided = true
         shape.materials = [material]
         return SCNNode(geometry: shape)
@@ -558,7 +558,7 @@ class EnvironmentSystem {
         let material = SCNMaterial()
         material.lightingModel = .constant
         material.diffuse.contents = color
-        material.emission.contents = color
+        // No emission — silhouettes read pure flat against the sky.
         material.isDoubleSided = true
         shape.materials = [material]
         return SCNNode(geometry: shape)
@@ -583,7 +583,6 @@ class EnvironmentSystem {
             let material = SCNMaterial()
             material.lightingModel = .constant
             material.diffuse.contents = color
-            material.emission.contents = color
             material.isDoubleSided = true
             shape.materials = [material]
 
@@ -690,11 +689,14 @@ class EnvironmentSystem {
         sphere.segmentCount = 4
         let material = SCNMaterial()
         material.lightingModel = .constant
-        let warm = Bool.random()
-        material.diffuse.contents = warm ? UIColor.cSafetyOrange : UIColor.cMintHighlight
-        material.emission.contents = warm
-            ? UIColor.cSafetyOrange.dimmed(0.68)
-            : UIColor.cMintMetal.dimmed(0.54)
+        // Pale dust drifting in the sun-warmed air — Alto's-style
+        // soft motes, not Outrun neon. A tiny chance of a colder mote
+        // gives the air a hint of variety without breaking the palette.
+        let warm = Int.random(in: 0...5) > 0
+        let warmCore = UIColor(red: 1.00, green: 0.92, blue: 0.78, alpha: 1)
+        let coolCore = UIColor(red: 0.86, green: 0.90, blue: 0.96, alpha: 1)
+        material.diffuse.contents = warm ? warmCore : coolCore
+        material.emission.contents = (warm ? warmCore : coolCore).dimmed(0.55)
         sphere.materials = [material]
 
         let node = SCNNode(geometry: sphere)

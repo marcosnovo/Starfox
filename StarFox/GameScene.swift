@@ -288,15 +288,9 @@ class GameScene: SCNScene {
         cameraNode.position = SCNVector3(0, cameraOffsetY, cameraOffsetZ)
         cameraNode.look(at: SCNVector3(0, cameraLookOffsetY, cameraLookOffsetZ))
 
-        let cameraFill = SCNNode()
-        let cameraFillLight = SCNLight()
-        cameraFillLight.type = .omni
-        cameraFillLight.intensity = 60
-        cameraFillLight.attenuationStartDistance = 0
-        cameraFillLight.attenuationEndDistance = 14
-        cameraFillLight.color = UIColor(hex: "#D97854")
-        cameraFill.light = cameraFillLight
-        cameraNode.addChildNode(cameraFill)
+        // Camera-mounted warm omni fill was hard-coded to Outrun orange and
+        // fought the dawn/day/night sky cycle. SkySystem's ambient + key +
+        // fill already give the hero ship its read; no per-camera light.
 
         setupSpeedLines()
         rootNode.addChildNode(cameraNode)
