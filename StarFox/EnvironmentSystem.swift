@@ -85,11 +85,15 @@ class EnvironmentSystem {
         rootNode.addChildNode(parallaxContainer)
         parallaxLayers.removeAll()
 
-        let far = UIColor(hex: "#B97464")
-        let farMid = UIColor(hex: "#9B625C")
-        let mid = UIColor(hex: "#744B52")
-        let near = UIColor(hex: "#4B3442")
-        let front = UIColor(hex: "#241C2A")
+        // Alto's-style tonal ramp: warm desaturated rose near the
+        // horizon, deepening to a near-black silhouette in the
+        // foreground. Atmospheric perspective is encoded as VALUE,
+        // not as additive haze.
+        let far    = UIColor(hex: "#C58576")
+        let farMid = UIColor(hex: "#8E5560")
+        let mid    = UIColor(hex: "#5C3E55")
+        let near   = UIColor(hex: "#2E2434")
+        let front  = UIColor(hex: "#14111A")
         let width: CGFloat = 200
         let segmentsPerLayer = 8
         let shipZ = shipPosition.z
@@ -158,8 +162,8 @@ class EnvironmentSystem {
                     height: 6.5,
                     peaks: 7,
                     jitter: 0.22,
-                    treeDensity: 5,
-                    ruinDensity: 1,
+                    treeDensity: 3,
+                    ruinDensity: 0,
                     valleyFactor: 0.40,
                     cloudDensity: 0,
                     birdDensity: 0
@@ -412,14 +416,17 @@ class EnvironmentSystem {
         let shape = SCNShape(path: path, extrusionDepth: extrusionDepth)
         let material = SCNMaterial()
         material.lightingModel = .constant
-        let haze = UIColor(hex: "#F6A35A")
-        let toned = color.blended(with: haze, t: atmosphereMix * 0.45)
-        material.diffuse.contents = toned
-        material.emission.contents = toned.blended(with: haze, t: atmosphereMix * 0.25)
+        // Pure flat silhouette — no haze blend, no emission glow. The
+        // atmospheric perspective comes from the layer's chosen tonal
+        // value, not from additive warmth that would smear the silhouette.
+        material.diffuse.contents = color
         material.isDoubleSided = true
         material.readsFromDepthBuffer = false
         material.writesToDepthBuffer = false
         shape.materials = [material]
+        // `atmosphereMix` is intentionally unused now; the parameter is
+        // kept so callers compile, and reads as a no-op.
+        _ = atmosphereMix
         return shape
     }
 
