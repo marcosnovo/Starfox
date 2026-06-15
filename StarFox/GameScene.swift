@@ -1361,8 +1361,9 @@ extension GameScene: SCNSceneRendererDelegate {
             updateLevelComplete(dt: dt)
         }
         environment.updateParallaxLandscape(dt: dt, shipPosition: shipNode.position)
-        if let horizon = skySystem.currentPalette?.skyHorizon {
-            environment.tintToPalette(horizon, dt: dt)
+        if let palette = skySystem.currentPalette {
+            environment.tintToPalette(palette.skyHorizon, dt: dt)
+            groundGrid.tintToPalette(horizon: palette.skyHorizon, top: palette.skyTop, dt: dt)
         }
         groundGrid.update(shipPosition: shipNode.position)
         updateReticles()

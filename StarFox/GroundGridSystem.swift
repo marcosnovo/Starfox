@@ -4,10 +4,11 @@
 //
 //  Alto's Adventure-style ground plane.
 //
-//  Replaces the neon synthwave grid with a single soft warm-to-deep
-//  gradient surface that fades into the scene's atmospheric fog at
-//  distance. No hard grid lines, no glowing lattice — pure atmospheric
-//  read, so the mountain silhouettes and sun stay the focal points.
+//  Replaces the neon synthwave grid with a single soft gradient surface
+//  that runs from a warm near-ground tone (the patch under the ship) to
+//  a deep horizon tone where scene fog finishes the fade. The gradient
+//  is regenerated whenever the active sky palette shifts so dawn / day /
+//  dusk / night each get a coherent ground tone.
 //
 //  The type name is kept for source-compatibility with the rest of the
 //  scene; it is no longer a grid.
@@ -19,6 +20,7 @@ import UIKit
 final class GroundGridSystem {
     private let rootNode: SCNNode
     private var groundNode: SCNNode?
+    private var material: SCNMaterial?
 
     /// World height of the floor — matches the base of the pillars so they
     /// stand on the ground.
@@ -26,6 +28,11 @@ final class GroundGridSystem {
 
     private let planeWidth: CGFloat = 240
     private let planeLength: CGFloat = 640
+
+    // Regenerating the gradient image every frame is wasteful — the sky
+    // only shifts a couple of times a second anyway.
+    private var tintAccumulator: TimeInterval = 0
+    private let tintInterval: TimeInterval = 0.6
 
     init(rootNode: SCNNode) {
         self.rootNode = rootNode
@@ -37,11 +44,14 @@ final class GroundGridSystem {
         let plane = SCNPlane(width: planeWidth, height: planeLength)
         let mat = SCNMaterial()
         mat.lightingModel = .constant
-        mat.diffuse.contents = Self.groundGradientImage()
-        // Anchor: the gradient runs along the plane's height axis (which
-        // becomes world Z once the plane is rotated flat) — image-top is
-        // the near foreground (warm), image-bottom is the far distance
-        // (deep) where scene fog takes over.
+        // Start at dusk colours so the opening frame already reads
+        // Alto's even before the first tint pass arrives.
+        mat.diffuse.contents = Self.gradientImage(
+            near:    UIColor(hex: "#D17F69"),
+            nearMid: UIColor(hex: "#9C5A5D"),
+            farMid:  UIColor(hex: "#5D3C50"),
+            far:     UIColor(hex: "#2A1F2C")
+        )
         mat.diffuse.wrapS = .clamp
         mat.diffuse.wrapT = .clamp
         mat.diffuse.magnificationFilter = .linear
@@ -50,6 +60,7 @@ final class GroundGridSystem {
         mat.writesToDepthBuffer = false
         mat.readsFromDepthBuffer = false
         plane.materials = [mat]
+        material = mat
 
         let node = SCNNode(geometry: plane)
         node.name = "ground"
@@ -62,24 +73,37 @@ final class GroundGridSystem {
     }
 
     func update(shipPosition: SCNVector3) {
-        // The plane follows the ship in Z so we never run off it. The
-        // gradient texture is anchored to the plane's UV space (not
-        // scrolled), so the warm patch always reads as the area we're
-        // crossing right now.
+        // The plane follows the ship in Z so we never run off it.
         groundNode?.position = SCNVector3(shipPosition.x * 0.4, Self.groundY, shipPosition.z)
     }
 
+    /// Re-tint the gradient texture using the current sky palette so
+    /// the ground reads coherently with dawn / day / dusk / night.
+    /// Throttled.
+    func tintToPalette(horizon: UIColor, top: UIColor, dt: TimeInterval) {
+        tintAccumulator += dt
+        if tintAccumulator < tintInterval { return }
+        tintAccumulator = 0
+
+        let void = UIColor(hex: "#0E0C18")
+        let near    = horizon
+        let nearMid = UIColor.lerp(from: horizon, to: void, t: 0.35)
+        let farMid  = UIColor.lerp(from: top,     to: void, t: 0.50)
+        let far     = UIColor.lerp(from: top,     to: void, t: 0.80)
+
+        material?.diffuse.contents = Self.gradientImage(
+            near: near, nearMid: nearMid, farMid: farMid, far: far
+        )
+    }
+
     func reset(shipPosition: SCNVector3) {
+        tintAccumulator = tintInterval   // force a refresh next tint pass.
         update(shipPosition: shipPosition)
     }
 
     // MARK: - Procedural ground texture
 
-    /// Vertical gradient that runs from a warm near-ground tone at the
-    /// top of the texture (the near foreground after the plane is laid
-    /// flat) down to a deep silhouette tone at the bottom (the far
-    /// distance, where scene fog completes the fade).
-    private static func groundGradientImage() -> UIImage {
+    private static func gradientImage(near: UIColor, nearMid: UIColor, farMid: UIColor, far: UIColor) -> UIImage {
         let size = CGSize(width: 64, height: 512)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in
@@ -87,11 +111,6 @@ final class GroundGridSystem {
             cg.clear(CGRect(origin: .zero, size: size))
 
             let space = CGColorSpaceCreateDeviceRGB()
-            let near    = UIColor(hex: "#D17F69")          // warm rose, matches dusk horizon
-            let nearMid = UIColor(hex: "#9C5A5D")
-            let farMid  = UIColor(hex: "#5D3C50")
-            let far     = UIColor(hex: "#2A1F2C")          // deep silhouette before fog completes the fade
-
             let colors = [
                 near.cgColor,
                 nearMid.cgColor,
@@ -107,8 +126,8 @@ final class GroundGridSystem {
             }
 
             // Very subtle horizontal ripple — barely-visible value
-            // breaks every few rows that give the eye something to read
-            // as snow drift / sand crest, without becoming a grid.
+            // breaks every few rows that give the eye something to
+            // read as snow drift / sand crest, without becoming a grid.
             let ripple = UIColor.black.withAlphaComponent(0.06).cgColor
             cg.setFillColor(ripple)
             var y: CGFloat = 24
