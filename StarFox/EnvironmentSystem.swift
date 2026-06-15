@@ -66,6 +66,13 @@ class EnvironmentSystem {
     private var birdSpawnInterval: TimeInterval = 3.4
     private var moteSpawnInterval: TimeInterval = 0.75
 
+    /// Mountain layer colour for the current sky phase, in the same
+    /// index order as `parallaxLayers`. Updated by `tintToPalette` so
+    /// the silhouettes drift through the dawn/day/dusk/night cycle.
+    private var currentLayerColors: [UIColor] = []
+    private var paletteTintAccumulator: TimeInterval = 0
+    private let paletteTintInterval: TimeInterval = 0.4
+
     private let rootNode: SCNNode
     private let minimalMode: Bool
 
@@ -243,17 +250,18 @@ class EnvironmentSystem {
                     let newOffset = Float.random(in: -2.2...2.2)
                     node.setValue(newOffset, forKey: "offsetX")
                     node.position.x = newOffset
+                    let recycleColor = layerColor(at: layerIndex, fallback: layer.profile.color)
                     node.geometry = makeMountainGeometry(
                         width: layer.width,
                         height: layer.profile.height,
                         peaks: layer.profile.peaks,
                         jitter: layer.profile.jitter,
-                        color: layer.profile.color,
+                        color: recycleColor,
                         atmosphereMix: max(0, 0.95 - layer.profile.opacity),
                         extrusionDepth: CGFloat(layer.segmentLength) * 1.15,
                         valleyFactor: layer.profile.valleyFactor
                     )
-                    decorateLandscapeSegment(node: node, profile: layer.profile)
+                    decorateLandscapeSegment(node: node, profile: layer.profile, colorOverride: recycleColor)
                 }
             }
         }
@@ -273,6 +281,49 @@ class EnvironmentSystem {
                 node.setValue(node.position.x, forKey: "offsetX")
             }
         }
+    }
+
+    // MARK: - Sky-driven palette tint
+
+    /// Re-tint the parallax silhouettes from the active sky palette so
+    /// the mountains drift through the dawn/day/dusk/night cycle.
+    /// Throttled — we don't need to repaint every frame; the sky
+    /// gradient itself only refreshes a couple of times a second.
+    func tintToPalette(_ horizon: UIColor, dt: TimeInterval) {
+        guard !parallaxLayers.isEmpty else { return }
+        paletteTintAccumulator += dt
+        if paletteTintAccumulator < paletteTintInterval { return }
+        paletteTintAccumulator = 0
+
+        let void = UIColor(hex: "#0E0C18")
+        // Per-layer darkness: far layers stay close to the horizon
+        // value, near layers darken toward a pure silhouette void.
+        let layerTs: [CGFloat] = [0.22, 0.46, 0.68, 0.86, 1.00]
+
+        var newColors: [UIColor] = []
+        newColors.reserveCapacity(parallaxLayers.count)
+
+        for (i, layer) in parallaxLayers.enumerated() {
+            let t = layerTs[min(i, layerTs.count - 1)]
+            let layerColor = UIColor.lerp(from: horizon, to: void, t: t)
+            newColors.append(layerColor)
+
+            for segment in layer.nodes {
+                segment.geometry?.firstMaterial?.diffuse.contents = layerColor
+                for child in segment.childNodes where child.name != "__ink" {
+                    child.geometry?.firstMaterial?.diffuse.contents = layerColor
+                    for grand in child.childNodes where grand.name != "__ink" {
+                        grand.geometry?.firstMaterial?.diffuse.contents = layerColor
+                    }
+                }
+            }
+        }
+        currentLayerColors = newColors
+    }
+
+    private func layerColor(at index: Int, fallback: UIColor) -> UIColor {
+        guard index >= 0, index < currentLayerColors.count else { return fallback }
+        return currentLayerColors[index]
     }
 
     // MARK: - Ambient Life
@@ -432,12 +483,13 @@ class EnvironmentSystem {
 
     // MARK: - Private Helpers — Decoration
 
-    private func decorateLandscapeSegment(node: SCNNode, profile: ParallaxProfile) {
+    private func decorateLandscapeSegment(node: SCNNode, profile: ParallaxProfile, colorOverride: UIColor? = nil) {
         node.childNodes.forEach { $0.removeFromParentNode() }
         guard profile.treeDensity > 0 || profile.ruinDensity > 0 || profile.cloudDensity > 0 || profile.birdDensity > 0 else { return }
+        let color = colorOverride ?? profile.color
 
         for _ in 0..<profile.treeDensity {
-            let tree = makeTreeSiluetteNode(color: profile.color)
+            let tree = makeTreeSiluetteNode(color: color)
             let crestMinY = Float(profile.height * 0.58)
             let crestMaxY = Float(profile.height * 0.95)
             tree.position = SCNVector3(
@@ -457,7 +509,7 @@ class EnvironmentSystem {
         }
 
         for _ in 0..<profile.ruinDensity {
-            let ruin = makeRuinArchNode(color: profile.color)
+            let ruin = makeRuinArchNode(color: color)
             let crestMinY = Float(profile.height * 0.50)
             let crestMaxY = Float(profile.height * 0.82)
             ruin.position = SCNVector3(
@@ -473,7 +525,7 @@ class EnvironmentSystem {
         }
 
         for _ in 0..<profile.cloudDensity {
-            let cloud = makeCloudNode(color: profile.color)
+            let cloud = makeCloudNode(color: color)
             cloud.position = SCNVector3(
                 Float.random(in: -55...55),
                 Float(profile.height * 0.85) + Float.random(in: 0.5...3.0),
@@ -487,7 +539,7 @@ class EnvironmentSystem {
         }
 
         for _ in 0..<profile.birdDensity {
-            let flock = makeBirdGroupNode(color: profile.color)
+            let flock = makeBirdGroupNode(color: color)
             flock.position = SCNVector3(
                 Float.random(in: -40...40),
                 Float(profile.height * 0.70) + Float.random(in: 1.0...4.0),
